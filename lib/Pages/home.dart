@@ -14,7 +14,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   MapController? mapController;
   var sb = Supabase.instance.client.from('PON_boxes');
-  int currentZoom = 12;
+  double currentZoom = 12.0;
   List<Map<String, dynamic>> ponBoxes = [];
   @override
   void initState() {
@@ -36,22 +36,36 @@ class _HomePageState extends State<HomePage> {
           FlutterMap(
             mapController: mapController,
             options: MapOptions(
-              crs: Epsg3857(),
+              //crs: CrsSimple(),
               initialCenter: LatLng(45.200051263299, 33.357208643387),
               initialZoom: 12,
               onMapEvent: (event) {
                 //print(event.camera.zoom);
+                setState(() {});
               },
             ),
             children: [
-              yandexMapTileLayer,
+              //yandexMapTileLayer,
+              openStreetMapTileLayer,
               MarkerLayer(
                 markers:
                     ponBoxes
                         .map(
                           (ponBox) => Marker(
+                            height: currentZoom * 1.6,
                             point: LatLng(ponBox['lat'], ponBox['long']),
-                            child: Icon(Icons.save),
+                            child: Container(
+                              height: currentZoom,
+                              decoration: BoxDecoration(
+                                color: Colors.yellow,
+                                border: BoxBorder.all(),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                '${ponBox['used_ports']}/${ponBox['ports']}',
+                                style: TextStyle(fontSize: currentZoom),
+                              ),
+                            ),
                           ),
                         )
                         .toList(),
