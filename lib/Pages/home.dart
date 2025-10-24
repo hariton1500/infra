@@ -13,8 +13,20 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   MapController? mapController;
-  var sb = Supabase.instance.client;
+  var sb = Supabase.instance.client.from('PON_boxes');
   int currentZoom = 12;
+  List<Map<String, dynamic>> ponBoxes = [];
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    sb.select().then((onValue) {
+      ponBoxes = onValue;
+      print(ponBoxes);
+      updates();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -24,17 +36,34 @@ class _HomePageState extends State<HomePage> {
           FlutterMap(
             mapController: mapController,
             options: MapOptions(
-              crs: Epsg4326(),
+              crs: Epsg3857(),
               initialCenter: LatLng(45.200051263299, 33.357208643387),
               initialZoom: 12,
               onMapEvent: (event) {
-                print(event.camera.zoom);
+                //print(event.camera.zoom);
               },
             ),
-            children: [yandexMapTileLayer],
+            children: [
+              yandexMapTileLayer,
+              MarkerLayer(
+                markers:
+                    ponBoxes
+                        .map(
+                          (ponBox) => Marker(
+                            point: LatLng(ponBox['lat'], ponBox['long']),
+                            child: Icon(Icons.save),
+                          ),
+                        )
+                        .toList(),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  void updates() {
+    setState(() {});
   }
 }
