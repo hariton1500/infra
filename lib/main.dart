@@ -15,8 +15,6 @@ void main() async {
     url: dotenv.env['url']!,
     anonKey: dotenv.env['anon']!,
   );
-  //String cookies = html.document.cookie ?? "";
-  //print('cookies:\n$cookies');
   try {
     final request = await html.HttpRequest.request(
       'https://billing.evpanet.com/admin/session_info.php',
@@ -57,7 +55,6 @@ class MyApp extends StatelessWidget {
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
-
 
   final String title;
 
