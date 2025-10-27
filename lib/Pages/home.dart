@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:infra/globals.dart';
+import 'package:infra/misc/epsg3395.dart';
 import 'package:infra/misc/tile_providers.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,24 +14,14 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   MapController? mapController;
-  var sb = Supabase.instance.client.from('PON_boxes');
-  double currentZoom = 12.0;
-  List<Map<String, dynamic>> ponBoxes = [];
+  double currentZoom = 18.0;
+  //List<Map<String, dynamic>> ponBoxes = [];
   bool addingMode = false;
   int selectedPorts = 0, usedPorts = 0;
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-    sb.select().then((onValue) {
-      ponBoxes = onValue;
-      print(ponBoxes);
-      updates();
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
+    //print(ponBoxes);
     return Scaffold(
       appBar: AppBar(title: Text('Инфраструктура PON')),
       floatingActionButton: FloatingActionButton(
@@ -47,12 +37,13 @@ class _HomePageState extends State<HomePage> {
           FlutterMap(
             mapController: mapController,
             options: MapOptions(
-              //crs: CrsSimple(),
-              initialCenter: LatLng(45.200051263299, 33.357208643387),
-              initialZoom: 12,
+              crs: const Epsg3395(),
+              center: LatLng(45.200051263299, 33.357208643387),
+              zoom: currentZoom,
+              maxZoom: 18,
               onMapEvent: (event) {
                 if (addingMode) {
-                  showDialog(
+                  showDialog<Map<String, dynamic>>(
                     context: context,
                     builder: (context) {
                       return Dialog(
@@ -63,8 +54,8 @@ class _HomePageState extends State<HomePage> {
                             height: 300,
                             child: Column(
                               children: [
-                                Text('Широта: ${event.camera.center.latitude}'),
-                                Text('Долгота: ${event.camera.center.longitude}'),
+                                Text('Широта: ${event.center.latitude}'),
+                                Text('Долгота: ${event.center.longitude}'),
                                 Card(
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -100,17 +91,19 @@ class _HomePageState extends State<HomePage> {
                                 ),
                                 if (selectedPorts > 0) ElevatedButton(
                                   onPressed: () async {
-                                    var res = await sb.insert({
-                                      'long': event.camera.center.longitude,
-                                      'lat': event.camera.center.latitude,
+                                    var box = {
+                                      'long': event.center.longitude,
+                                      'lat': event.center.latitude,
                                       'ports': selectedPorts,
                                       'used_ports': usedPorts,
                                       'added_by': activeUser['login']
-                                    }).select();
+                                    };
+                                    var res = await sb.insert(box).select();
                                     addingMode = false;
                                     selectedPorts = 0;
                                     usedPorts = 0;
-                                    Navigator.of(context).pop(res);
+                                    // ignore: use_build_context_synchronously
+                                    Navigator.of(context).pop(res.first);
                                   },
                                   child: Text('Добавить')
                                 )
@@ -122,38 +115,49 @@ class _HomePageState extends State<HomePage> {
                       );
                     }
                   ).then((onValue) {
-                    sb.select().then((onValue) {
-                      ponBoxes = onValue;
-                      print(ponBoxes);
-                      updates();
+                    setState(() {
+                      if (onValue != null && onValue.isNotEmpty) {
+                        ponBoxes.add(onValue);
+                      }
                     });
                   });
                 }
               },
             ),
             children: [
-              //yandexMapTileLayer,
-              openStreetMapTileLayer,
+              yandexMapTileLayer,
+              //openStreetMapTileLayer,
               MarkerLayer(
                 markers:
                     ponBoxes
                         .map(
                           (ponBox) => Marker(
-                            height: currentZoom * 1.6,
-                            width: currentZoom * 1,
+                            height: currentZoom * 1.5,
+                            width: currentZoom * 1.6,
                             point: LatLng(ponBox['lat'], ponBox['long']),
-                            child: Container(
-                              height: currentZoom,
-                              decoration: BoxDecoration(
-                                color: Colors.yellow,
-                                //border: BoxBorder.all(),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                '${ponBox['used_ports']}/${ponBox['ports']}',
-                                style: TextStyle(fontSize: currentZoom),
-                              ),
-                            ),
+                            builder: (context) {
+                              return Stack(
+                                children: [
+                                  Positioned(
+                                    top: -3,
+                                    child: Container(
+                                      height: currentZoom,
+                                      decoration: BoxDecoration(
+                                        color: Colors.yellow,
+                                        //border: BoxBorder.all(),
+                                        //borderRadius: BorderRadius.all(Radius.zero),
+                                      ),
+                                      child: Text(
+                                        textAlign: TextAlign.center,
+                                        '${ponBox['ports']}',
+                                        style: TextStyle(fontSize: currentZoom * 1),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(right: 15, top: -10, child: Text(ponBox['used_ports'].toString()))
+                                ]
+                              );
+                            }
                           ),
                         )
                         .toList(),

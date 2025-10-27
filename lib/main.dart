@@ -28,11 +28,15 @@ void main() async {
       'login': data['admin_login'].toString(),
       'level': int.parse(data['level']),
     };
+    print('loading info');
+    await loadBoxes();
     runApp(const MyApp());
   } catch (e) {
     print('Error:\n$e');
     //runApp(const ErrorApp());
     activeUser = {'login': 'hariton', 'level': 0};
+    print('loading info');
+    await loadBoxes();
     runApp(MyApp());
   }
 }
