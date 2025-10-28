@@ -23,7 +23,7 @@ class _HomePageState extends State<HomePage> {
   //List<Map<String, dynamic>> ponBoxes = [];
   bool addingMode = false;
   int selectedPorts = 0, usedPorts = 0;
-  final FollowOnLocationUpdate _alignPositionOnUpdate = FollowOnLocationUpdate.once;
+  FollowOnLocationUpdate _alignPositionOnUpdate = FollowOnLocationUpdate.once;
   final StreamController<double?> _alignPositionStreamController = StreamController<double?>();
 
   @override
@@ -36,7 +36,18 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     //print(ponBoxes);
     return Scaffold(
-      appBar: AppBar(title: Text('Инфраструктура PON')),
+      appBar: AppBar(
+        title: Text('Инфраструктура PON'),
+        actions: [
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _alignPositionOnUpdate = FollowOnLocationUpdate.once;
+              });
+            },
+            icon: Icon(Icons.location_searching))
+        ],
+        ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
@@ -54,6 +65,9 @@ class _HomePageState extends State<HomePage> {
               center: currentCenter,
               zoom: currentZoom,
               maxZoom: 18,
+              onPositionChanged: (position, hasGesture) {
+                print(position);
+              },
               onMapEvent: (event) {
                 setState(() {
                   currentCenter = event.center;
@@ -145,6 +159,8 @@ class _HomePageState extends State<HomePage> {
               //openStreetMapTileLayer,
               CurrentLocationLayer(
                 followOnLocationUpdate: _alignPositionOnUpdate,
+                
+                //followCurrentLocationStream: _alignPositionStreamController,
               ),
               MarkerLayer(
                 markers:
