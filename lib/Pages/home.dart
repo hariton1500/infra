@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:infra/globals.dart';
 import 'package:infra/misc/epsg3395.dart';
 import 'package:infra/misc/tile_providers.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,9 +18,19 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   MapController? mapController;
   double currentZoom = 18.0;
+  LatLng currentCenter = LatLng(45.200051263299, 33.357208643387);
+  int showRadius = 200;
   //List<Map<String, dynamic>> ponBoxes = [];
   bool addingMode = false;
   int selectedPorts = 0, usedPorts = 0;
+  final FollowOnLocationUpdate _alignPositionOnUpdate = FollowOnLocationUpdate.once;
+  final StreamController<double?> _alignPositionStreamController = StreamController<double?>();
+
+  @override
+  void dispose() {
+    _alignPositionStreamController.close();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,10 +51,13 @@ class _HomePageState extends State<HomePage> {
             mapController: mapController,
             options: MapOptions(
               crs: const Epsg3395(),
-              center: LatLng(45.200051263299, 33.357208643387),
+              center: currentCenter,
               zoom: currentZoom,
               maxZoom: 18,
               onMapEvent: (event) {
+                setState(() {
+                  currentCenter = event.center;
+                });
                 if (addingMode) {
                   showDialog<Map<String, dynamic>>(
                     context: context,
@@ -127,10 +143,15 @@ class _HomePageState extends State<HomePage> {
             children: [
               yandexMapTileLayer,
               //openStreetMapTileLayer,
+              CurrentLocationLayer(
+                followOnLocationUpdate: _alignPositionOnUpdate,
+              ),
               MarkerLayer(
                 markers:
-                    ponBoxes
-                        .map(
+                    ponBoxes.where((box) {
+                        var dist = DistanceVincenty();
+                        return dist(LatLng(box['lat'], box['long']), currentCenter) <= showRadius;
+                      }).map(
                           (ponBox) => Marker(
                             height: currentZoom * 1.5,
                             width: currentZoom * 1.6,
@@ -144,23 +165,27 @@ class _HomePageState extends State<HomePage> {
                                       height: currentZoom,
                                       decoration: BoxDecoration(
                                         color: Colors.yellow,
-                                        //border: BoxBorder.all(),
-                                        //borderRadius: BorderRadius.all(Radius.zero),
                                       ),
                                       child: Text(
                                         textAlign: TextAlign.center,
                                         '${ponBox['ports']}',
-                                        style: TextStyle(fontSize: currentZoom * 1),
+                                        style: TextStyle(fontSize: currentZoom * 0.8),
                                       ),
                                     ),
                                   ),
-                                  Positioned(right: 15, top: -10, child: Text(ponBox['used_ports'].toString()))
+                                  //Positioned(right: 15, top: -10, child: Text(ponBox['used_ports'].toString()))
                                 ]
                               );
                             }
                           ),
                         )
                         .toList(),
+              ),
+              CircleLayer(
+                circles: [
+                  CircleMarker(point: currentCenter, radius: showRadius.toDouble(), useRadiusInMeter: true, color: Colors.white10, borderStrokeWidth: 1, borderColor: Colors.black38),
+                  CircleMarker(point: currentCenter, radius: 1, useRadiusInMeter: true, color: Colors.white, borderStrokeWidth: 1, borderColor: Colors.black)
+                ]
               ),
             ],
           ),
