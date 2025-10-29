@@ -27,7 +27,18 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     //print(ponBoxes);
     return Scaffold(
-      appBar: AppBar(title: Text('Инфраструктура PON')),
+      appBar: AppBar(
+        title: Text('Инфраструктура PON'),
+        actions: [
+          IconButton(
+            onPressed: () {
+              setState(() {
+                //_alignPositionOnUpdate = FollowOnLocationUpdate.once;
+              });
+            },
+            icon: Icon(Icons.location_searching))
+        ],
+        ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
@@ -45,6 +56,9 @@ class _HomePageState extends State<HomePage> {
               center: currentCenter,
               zoom: currentZoom,
               maxZoom: 18,
+              onPositionChanged: (position, hasGesture) {
+                print(position);
+              },
               onMapEvent: (event) {
                 setState(() {
                   currentCenter = event.center;
