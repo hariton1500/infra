@@ -68,7 +68,7 @@ flutter:
   assets:
     - secrets.env
   # assets:
-  #   - images/a_dot_burr.jpeg
+    - assets/pics/ponbox.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
