@@ -18,9 +18,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   MapController? mapController = MapController();
-  double currentZoom = 17.5;
+  double currentZoom = 14;
   LatLng currentCenter = LatLng(45.200051263299, 33.357208643387);
-  int showRadius = 200;
+  int showRadius = 1000;
   //List<Map<String, dynamic>> ponBoxes = [];
   int selectedPorts = 0, usedPorts = 0;
 
@@ -136,13 +136,22 @@ class _HomePageState extends State<HomePage> {
                 currentCenter = position.center!;
                 updates();
               },
+              /*
               onMapEvent: (event) {
                 currentZoom = event.zoom;
-              },
+                print('onEvent');
+                print(event.source.index);
+              },*/
             ),
             children: [
               yandexMapTileLayer,
               //openStreetMapTileLayer,
+              CircleLayer(
+                circles: [
+                  CircleMarker(point: currentCenter, radius: showRadius.toDouble(), useRadiusInMeter: true, color: Colors.white10, borderStrokeWidth: 1, borderColor: Colors.black38),
+                  CircleMarker(point: currentCenter, radius: 1, useRadiusInMeter: true, color: Colors.white, borderStrokeWidth: 1, borderColor: Colors.black)
+                ]
+              ),
               MarkerLayer(
                 markers:
                     ponBoxes.where((box) {
@@ -154,17 +163,30 @@ class _HomePageState extends State<HomePage> {
                             width: currentZoom * 1.6,
                             point: LatLng(ponBox['lat'], ponBox['long']),
                             builder: (context) {
-                              return ponBoxWidget(ponBox, currentZoom);
+                              return GestureDetector(
+                                child: ponBoxWidget(ponBox, currentZoom),
+                                onTap: () {
+                                  print('onTap');
+                                  showModalBottomSheet(
+                                    context: context,
+                                    builder: (context) {
+                                      return SizedBox(
+                                        width: 200,
+                                        height: 300,
+                                        child: Column(
+                                          children: [
+                                            Text(ponBox['id'].toString())
+                                          ],
+                                        ),
+                                      );
+                                    }
+                                  );
+                                },
+                              );
                             }
                           ),
                         )
                         .toList(),
-              ),
-              CircleLayer(
-                circles: [
-                  CircleMarker(point: currentCenter, radius: showRadius.toDouble(), useRadiusInMeter: true, color: Colors.white10, borderStrokeWidth: 1, borderColor: Colors.black38),
-                  CircleMarker(point: currentCenter, radius: 1, useRadiusInMeter: true, color: Colors.white, borderStrokeWidth: 1, borderColor: Colors.black)
-                ]
               ),
             ],
           ),
