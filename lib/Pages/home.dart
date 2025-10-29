@@ -6,7 +6,6 @@ import 'package:infra/globals.dart';
 import 'package:infra/misc/epsg3395.dart';
 import 'package:infra/misc/tile_providers.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -23,14 +22,6 @@ class _HomePageState extends State<HomePage> {
   //List<Map<String, dynamic>> ponBoxes = [];
   bool addingMode = false;
   int selectedPorts = 0, usedPorts = 0;
-  final FollowOnLocationUpdate _alignPositionOnUpdate = FollowOnLocationUpdate.once;
-  final StreamController<double?> _alignPositionStreamController = StreamController<double?>();
-
-  @override
-  void dispose() {
-    _alignPositionStreamController.close();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -143,9 +134,6 @@ class _HomePageState extends State<HomePage> {
             children: [
               yandexMapTileLayer,
               //openStreetMapTileLayer,
-              CurrentLocationLayer(
-                followOnLocationUpdate: _alignPositionOnUpdate,
-              ),
               MarkerLayer(
                 markers:
                     ponBoxes.where((box) {
