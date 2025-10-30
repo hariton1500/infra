@@ -118,66 +118,108 @@ class _HomePageState extends State<HomePage> {
                   return Dialog(
                     child: StatefulBuilder(
                       builder: (BuildContext context, void Function(void Function()) setState) { 
+                        bool canAdd = selectedPorts > 0 && usedPorts <= selectedPorts;
                         return SizedBox(
-                        width: 300,
-                        height: 300,
-                        child: Column(
-                          children: [
-                            Text('Широта: ${currentCenter.latitude}'),
-                            Text('Долгота: ${currentCenter.longitude}'),
-                            Card(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          width: 360,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Количество портов:'),
-                                ...[2, 4, 8, 16].map((q) => InkWell(
-                                  child: q == selectedPorts ? Text('[>$q<]') : Text('[  $q  ]'),
-                                  onTap: () {
+                                Row(
+                                  children: [
+                                    Icon(Icons.add_box, color: Theme.of(context).colorScheme.primary),
+                                    const SizedBox(width: 8),
+                                    Text('Добавить PON бокс', style: Theme.of(context).textTheme.titleMedium),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Text('Координаты', style: Theme.of(context).textTheme.labelMedium),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Expanded(child: Text('Широта: ${currentCenter.latitude.toStringAsFixed(6)}')),
+                                    const SizedBox(width: 8),
+                                    Expanded(child: Text('Долгота: ${currentCenter.longitude.toStringAsFixed(6)}')),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Text('Количество портов', style: Theme.of(context).textTheme.labelMedium),
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    for (final q in [2, 4, 8, 16]) ChoiceChip(
+                                      label: Text(q.toString()),
+                                      selected: selectedPorts == q,
+                                      onSelected: (_) {
+                                        setState(() {
+                                          selectedPorts = q;
+                                          if (usedPorts > selectedPorts) usedPorts = selectedPorts;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Text('Занятых портов', style: Theme.of(context).textTheme.labelMedium),
+                                const SizedBox(height: 6),
+                                Slider(
+                                  value: usedPorts.toDouble().clamp(0, selectedPorts.toDouble()),
+                                  min: 0,
+                                  max: (selectedPorts > 0 ? selectedPorts : 16).toDouble(),
+                                  divisions: (selectedPorts > 0 ? selectedPorts : 16),
+                                  label: '$usedPorts',
+                                  onChanged: (v) {
                                     setState(() {
-                                      selectedPorts = q;
-                                    },);
+                                      usedPorts = v.round();
+                                    });
                                   },
+                                ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('Выбрано: $usedPorts из $selectedPorts', style: Theme.of(context).textTheme.bodySmall),
+                                    if (usedPorts > selectedPorts) Text('Слишком много', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: const Text('Отмена'),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    ElevatedButton.icon(
+                                      onPressed: canAdd ? () async {
+                                        var box = {
+                                          'long': currentCenter.longitude,
+                                          'lat': currentCenter.latitude,
+                                          'ports': selectedPorts,
+                                          'used_ports': usedPorts,
+                                          'added_by': activeUser['login']
+                                        };
+                                        var res = await sb.insert(box).select();
+                                        selectedPorts = 0;
+                                        usedPorts = 0;
+                                        // ignore: use_build_context_synchronously
+                                        Navigator.of(context).pop(res.first);
+                                      } : null,
+                                      icon: const Icon(Icons.check),
+                                      label: const Text('Добавить'),
+                                    )
+                                  ],
                                 )
-                              ),
-                              ])
+                              ],
                             ),
-                            Card(
-                              child: Wrap(
-                                spacing: 5,
-                                runSpacing: 5,
-                                children: [
-                                  Text('Занятых портов:'),
-                                  ...List<int>.generate(selectedPorts + 1, (i) => i).map((q) => InkWell(
-                                    child: q == usedPorts ? Text('[>$q<]') : Text('[  $q  ]'),
-                                    onTap: () {
-                                      setState(() {
-                                        usedPorts = q;
-                                      },);
-                                    },
-                                  )),
-                                ]
-                              )
-                            ),
-                            if (selectedPorts > 0) ElevatedButton(
-                              onPressed: () async {
-                                var box = {
-                                  'long': currentCenter.longitude,
-                                  'lat': currentCenter.latitude,
-                                  'ports': selectedPorts,
-                                  'used_ports': usedPorts,
-                                  'added_by': activeUser['login']
-                                };
-                                var res = await sb.insert(box).select();
-                                selectedPorts = 0;
-                                usedPorts = 0;
-                                // ignore: use_build_context_synchronously
-                                Navigator.of(context).pop(res.first);
-                              },
-                              child: Text('Добавить')
-                            )
-                          ],
-                        ),
-                      );
+                          ),
+                        );
                         },
                     ),
                   );
