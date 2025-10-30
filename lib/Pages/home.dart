@@ -1,4 +1,3 @@
-import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -18,11 +17,11 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   MapController? mapController = MapController();
-  double currentZoom = 14;
+  double currentZoom = 17.5;
   LatLng currentCenter = LatLng(45.200051263299, 33.357208643387);
-  int showRadius = 1000;
-  //List<Map<String, dynamic>> ponBoxes = [];
+  int showRadius = 200;
   int selectedPorts = 0, usedPorts = 0;
+  bool isSatLayer = false;
 
   @override
   Widget build(BuildContext context) {
@@ -119,7 +118,14 @@ class _HomePageState extends State<HomePage> {
                 });
               });
             },
-            icon: Icon(Icons.add_box)),
+            icon: Icon(Icons.add_box)
+          ),
+          IconButton(
+            onPressed: () => setState(() {
+              isSatLayer = !isSatLayer;
+            }),
+            icon: Icon(Icons.layers)
+          ),
         ],
       ),
       body: Stack(
@@ -144,7 +150,7 @@ class _HomePageState extends State<HomePage> {
               },*/
             ),
             children: [
-              yandexMapTileLayer,
+              isSatLayer ? yandexMapSatTileLayer : yandexMapTileLayer,
               //openStreetMapTileLayer,
               CircleLayer(
                 circles: [
@@ -174,8 +180,26 @@ class _HomePageState extends State<HomePage> {
                                         width: 200,
                                         height: 300,
                                         child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.start,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            Text(ponBox['id'].toString())
+                                            SizedBox(height: 30,),
+                                            Text('Box id: ${ponBox['id']}'),
+                                            Divider(),
+                                            Text('Всего портов: ${ponBox['ports']}'),
+                                            Text('Использовано: ${ponBox['used_ports']}'),
+                                            Text('Координаты: [${ponBox['lat']}, ${ponBox['long']}]'),
+                                            if (ponBox['added_by'] != null) Text('Добавлен: ${ponBox['added_by']}'),
+                                            Text('Дата добавления: ${ponBox['created_at']}'),
+                                            SizedBox(height: 30,),
+                                            if (params.containsKey('getponbox')) InkWell(
+                                              child: linkText('Выбрать этот'),
+                                              onTap: () {
+                                                print('Выбран пон бокс ${ponBox['id']}');
+                                                //back pon box id to billing
+                                                //Navigator.of(context).pop(ponBox['id']);
+                                              },
+                                            )
                                           ],
                                         ),
                                       );

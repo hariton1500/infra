@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:universal_html/html.dart' as html;
 
 List<String> users = [
   "hariton",
@@ -36,3 +37,6 @@ Future loadBoxes() async {
   ponBoxes = res;
   print('loaded ${res.length} objects');
 }
+
+var uri = Uri.dataFromString(html.window.location.href);
+Map<String, String> params = uri.queryParameters;

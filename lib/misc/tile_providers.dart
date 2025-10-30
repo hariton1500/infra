@@ -15,6 +15,11 @@ TileLayer get yandexMapTileLayer => TileLayer(
   urlTemplate:
       'https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&lang=ru_RU',
   tileProvider: NetworkTileProvider(httpClient: httpClient),
+  subdomains: ['01', '02', '03', '04'],
+);
 
+TileLayer get yandexMapSatTileLayer => TileLayer(
+  urlTemplate: 'https://core-sat.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&lang=ru_RU',
+  tileProvider: NetworkTileProvider(httpClient: httpClient),
   subdomains: ['01', '02', '03', '04'],
 );

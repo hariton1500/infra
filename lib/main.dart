@@ -7,6 +7,7 @@ import 'package:infra/Pages/home.dart';
 import 'package:infra/globals.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universal_html/html.dart' as html;
+import 'package:universal_html/parsing.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +29,9 @@ void main() async {
       'login': data['admin_login'].toString(),
       'level': int.parse(data['level']),
     };
+    //get parameters
+    print('get params');
+    print(html.window.toString());
     print('loading info');
     await loadBoxes();
     runApp(const MyApp());
@@ -35,6 +39,10 @@ void main() async {
     print('Error:\n$e');
     //runApp(const ErrorApp());
     activeUser = {'login': 'hariton', 'level': 0};
+    //get parameters
+    print('get params');
+    print(html.window.location.href);
+    print(params);
     print('loading info');
     await loadBoxes();
     runApp(MyApp());
