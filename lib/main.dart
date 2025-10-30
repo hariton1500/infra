@@ -7,7 +7,7 @@ import 'package:infra/Pages/home.dart';
 import 'package:infra/globals.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universal_html/html.dart' as html;
-import 'package:universal_html/parsing.dart';
+//import 'package:universal_html/parsing.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
