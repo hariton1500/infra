@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 Widget ponBoxWidget(Map<String, dynamic> box, double zoom) {
   final int ports = (box['ports'] ?? 0) as int;
   final int used = (box['used_ports'] ?? 0) as int;
+  final int id = (box['id'] ?? 0) as int;
   final double usage = ports > 0 ? (used / ports).clamp(0.0, 1.0) : 0.0;
 
   Color usageColor;
@@ -52,21 +53,6 @@ Widget ponBoxWidget(Map<String, dynamic> box, double zoom) {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              /*
-              Container(
-                width: iconSize + 6,
-                height: iconSize + 6,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [usageColor.withValues(alpha: 0.15), usageColor.withValues(alpha: 0.35)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Icon(Icons.developer_board, size: iconSize, color: usageColor),
-              ),*/
               SizedBox(width: gap),
               ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: (w * 0.72).clamp(20.0, double.infinity)),
@@ -99,7 +85,7 @@ Widget ponBoxWidget(Map<String, dynamic> box, double zoom) {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'PON',
+                      '# $id',
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: fontSub, color: Colors.black54, fontWeight: FontWeight.w500),
                     ),
