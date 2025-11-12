@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:infra/globals.dart';
 import 'package:infra/misc/epsg3395.dart';
+import 'package:infra/misc/gecoding.dart';
 import 'package:infra/misc/tile_providers.dart';
 import 'package:infra/misc/geolocator.dart';
 import 'package:infra/widgets.dart';
@@ -26,13 +27,22 @@ class _HomePageState extends State<HomePage> {
   bool hasDivider = false;
   int? dividerPorts;
 
-
+  @override
+  void initState() {
+    if (params.containsKey('order') && params.containsKey('address')) {
+      //
+      print('start geocoding addres:');
+      getGeoCoding(params['address'].toString());
+    }
+    super.initState();
+  }
+  
   @override
   Widget build(BuildContext context) {
     //print(ponBoxes);
     return Scaffold(
       appBar: AppBar(
-        title: Text('Инфраструктура PON'),
+        title: Text('PON'),
         actions: [
           IconButton(
             onPressed: () async {

@@ -37,15 +37,15 @@ void main() async {
     runApp(const MyApp());
   } catch (e) {
     print('Error:\n$e');
-    runApp(const ErrorApp());
+    //runApp(const ErrorApp());
     activeUser = {'login': 'magistik', 'level': 10};
     //get parameters
     print('get params');
     print(html.window.location.href);
     print(params);
     print('loading info');
-    //await loadBoxes();
-    //runApp(MyApp());
+    await loadBoxes();
+    runApp(MyApp());
   }
 }
 
