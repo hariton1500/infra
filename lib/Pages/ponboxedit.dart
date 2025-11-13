@@ -160,7 +160,7 @@ Future<void> showEditPonBoxDialog(
                               contentPadding: EdgeInsets.zero,
                               title: Text('Первичный делитель', style: Theme.of(context).textTheme.labelMedium),
                               subtitle: editHasDivider && editDividerPorts != null 
-                                  ? Text('На ${editDividerPorts} портов', style: Theme.of(context).textTheme.bodySmall) 
+                                  ? Text('На $editDividerPorts портов', style: Theme.of(context).textTheme.bodySmall) 
                                   : null,
                               value: editHasDivider,
                               onChanged: (value) {

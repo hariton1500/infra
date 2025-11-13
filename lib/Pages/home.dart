@@ -29,20 +29,18 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void initState() {
-    if (params.containsKey('order') && params.containsKey('address')) {
-      //
-      print('start geocoding addres:');
-      getGeoCoding(params['address'].toString());
+    if (params.containsKey('order') && params.containsKey('address') && params['address']!.isNotEmpty) {
+      getGeoCoding(params['address']!, source: 'osm');
     }
     super.initState();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     //print(ponBoxes);
     return Scaffold(
       appBar: AppBar(
-        title: Text('PON'),
+        title: Text('Инфраструктура PON'),
         actions: [
           IconButton(
             onPressed: () async {
@@ -192,7 +190,7 @@ class _HomePageState extends State<HomePage> {
                                         dense: true,
                                         contentPadding: EdgeInsets.zero,
                                         title: Text('Первичный делитель', style: Theme.of(context).textTheme.labelMedium),
-                                        subtitle: hasDivider && dividerPorts != null ? Text('На ${dividerPorts} портов', style: Theme.of(context).textTheme.bodySmall) : null,
+                                        subtitle: hasDivider && dividerPorts != null ? Text('На $dividerPorts портов', style: Theme.of(context).textTheme.bodySmall) : null,
                                         value: hasDivider,
                                         onChanged: (value) {
                                           setState(() {
