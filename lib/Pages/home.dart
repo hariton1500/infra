@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:infra/globals.dart';
 import 'package:infra/misc/epsg3395.dart';
-import 'package:infra/misc/gecoding.dart';
+//import 'package:infra/misc/gecoding.dart';
 import 'package:infra/misc/tile_providers.dart';
 import 'package:infra/misc/geolocator.dart';
 import 'package:infra/widgets.dart';
@@ -29,8 +29,15 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void initState() {
-    if (params.containsKey('order') && params.containsKey('address') && params['address']!.isNotEmpty) {
-      getGeoCoding(params['address']!, source: 'osm');
+    if (params.containsKey('order') && params.containsKey('lat')&& params.containsKey('long')) {
+      //getGeoCoding(params['address']!, source: 'osm');
+      try {
+        setState(() {
+          currentCenter = LatLng(double.parse(params['lat']!), double.parse(params['long']!));
+        });
+      } catch (e) {
+        print(e);        
+      }
     }
     super.initState();
   }
