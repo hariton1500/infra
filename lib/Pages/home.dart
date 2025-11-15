@@ -26,6 +26,7 @@ class _HomePageState extends State<HomePage> {
   bool isSatLayer = false;
   bool hasDivider = false;
   int? dividerPorts;
+  String mode = '';
 
   @override
   void initState() {
@@ -38,6 +39,11 @@ class _HomePageState extends State<HomePage> {
       } catch (e) {
         print(e);        
       }
+    }
+    if (params.containsKey('getpoint')) {
+      setState(() {
+        mode = 'getpoint';
+      });
     }
     super.initState();
   }
@@ -309,6 +315,10 @@ class _HomePageState extends State<HomePage> {
                 currentCenter = position.center!;
                 updates();
               },
+              onTap: (tapPosition, point) {
+                print('point=$point');
+                print('tapPos=$tapPosition');
+              },
               /*
               onMapEvent: (event) {
                 currentZoom = event.zoom;
@@ -357,6 +367,10 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: Text('Режим указания точки на карте...')
+          )
         ],
       ),
     );
