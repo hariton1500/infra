@@ -1,4 +1,6 @@
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:infra/globals.dart';
@@ -9,6 +11,7 @@ import 'package:infra/misc/geolocator.dart';
 import 'package:infra/widgets.dart';
 import 'package:infra/Pages/ponboxshow.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:universal_html/html.dart' as html;
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -315,16 +318,6 @@ class _HomePageState extends State<HomePage> {
                 currentCenter = position.center!;
                 updates();
               },
-              onTap: (tapPosition, point) {
-                print('point=$point');
-                print('tapPos=$tapPosition');
-              },
-              /*
-              onMapEvent: (event) {
-                currentZoom = event.zoom;
-                print('onEvent');
-                print(event.source.index);
-              },*/
             ),
             children: [
               isSatLayer ? yandexMapSatTileLayer : yandexMapTileLayer,
@@ -367,9 +360,15 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
-          Align(
+          if (mode == 'getpoint') Align(
             alignment: Alignment.topCenter,
-            child: Text('Режим указания точки на карте...')
+            child: Text('Режим указания точки на карте...\nНаведите центр карты на нужную точку и нажмите кнопку\n"Сохранить координаты"')
+          ),
+          if (mode == 'getpoint') Align(
+            alignment: Alignment.bottomCenter,
+            child: ElevatedButton.icon(onPressed: () {
+              html.window.parent?.postMessage(jsonEncode(currentCenter.toJson()), '*');
+            }, label: Text('Сохранить координаты'), icon: Icon(Icons.place),),
           )
         ],
       ),

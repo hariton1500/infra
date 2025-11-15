@@ -43,6 +43,7 @@ void main() async {
     print('get params');
     print(html.window.location.href);
     print(params);
+    //html.window.parent.postMessage(message, targetOrigin)
     print('loading info');
     await loadBoxes();
     runApp(MyApp());
