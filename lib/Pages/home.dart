@@ -1,6 +1,7 @@
 
 import 'dart:convert';
-
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:infra/globals.dart';
@@ -362,12 +363,24 @@ class _HomePageState extends State<HomePage> {
           ),
           if (mode == 'getpoint') Align(
             alignment: Alignment.topCenter,
-            child: Text('Режим указания точки на карте...\nНаведите центр карты на нужную точку и нажмите кнопку\n"Сохранить координаты"')
+            child: Text('Режим указания точки на карте...\nНаведите центр карты на нужную точку и нажмите кнопку\n"Сохранить координаты"', style: TextStyle(color: Colors.red),)
           ),
           if (mode == 'getpoint') Align(
             alignment: Alignment.bottomCenter,
             child: ElevatedButton.icon(onPressed: () {
-              html.window.parent?.postMessage(jsonEncode(currentCenter.toJson()), '*');
+              //html.window.parent?.postMessage(jsonEncode(currentCenter.toJson()), '*');
+              final global = globalContext;
+              final opener = global.getProperty('opener'.toJS);
+              if (opener != null && !opener.isUndefined && !opener.isNull) {
+                final openerObj = opener as JSObject;
+                openerObj.callMethod(
+                  'returnGPScoodrs'.toJS, 
+                  '${currentCenter.latitude} ${currentCenter.longitude}'.toJS
+                );
+              }
+              setState(() {
+                mode = '';
+              });
             }, label: Text('Сохранить координаты'), icon: Icon(Icons.place),),
           )
         ],
