@@ -374,7 +374,7 @@ class _HomePageState extends State<HomePage> {
               if (opener != null && !opener.isUndefined && !opener.isNull) {
                 final openerObj = opener as JSObject;
                 openerObj.callMethod(
-                  'returnGPScoodrs'.toJS, 
+                  (params.containsKey('callback') ? '${params['callback']}' : 'returnGPScoodrs').toJS, 
                   '${currentCenter.latitude} ${currentCenter.longitude}'.toJS
                 );
               }
