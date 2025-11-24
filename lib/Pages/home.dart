@@ -1,5 +1,4 @@
 
-import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'package:flutter/material.dart';
@@ -12,7 +11,6 @@ import 'package:infra/misc/geolocator.dart';
 import 'package:infra/widgets.dart';
 import 'package:infra/Pages/ponboxshow.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:universal_html/html.dart' as html;
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -34,8 +32,11 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void initState() {
+    print('[home]initState');
+    print('params: \n$params');
     if (params.containsKey('order') && params.containsKey('lat')&& params.containsKey('long')) {
       //getGeoCoding(params['address']!, source: 'osm');
+      print('found params["order&&lat&&long"]');
       try {
         setState(() {
           currentCenter = LatLng(double.parse(params['lat']!), double.parse(params['long']!));
@@ -45,6 +46,7 @@ class _HomePageState extends State<HomePage> {
       }
     }
     if (params.containsKey('getpoint')) {
+      print('found param["getpoint"]');
       setState(() {
         mode = 'getpoint';
       });
@@ -54,7 +56,8 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    //print(ponBoxes);
+    print('[home]build');
+    print('mode: $mode');
     return Scaffold(
       appBar: AppBar(
         title: Text('Инфраструктура PON'),

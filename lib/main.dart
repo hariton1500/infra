@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:infra/Pages/error.dart';
 import 'package:infra/Pages/home.dart';
 import 'package:infra/globals.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -16,7 +15,9 @@ void main() async {
     url: dotenv.env['url']!,
     anonKey: dotenv.env['anon']!,
   );
+  print('[main]starting app...');
   try {
+    print('[main]making request to https://billing.evpanet.com/admin/session_info.php');
     final request = await html.HttpRequest.request(
       'https://billing.evpanet.com/admin/session_info.php',
       method: 'GET',
@@ -56,6 +57,7 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    print('[myapp]build');
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Инфраструктура PON',
