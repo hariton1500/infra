@@ -35,6 +35,7 @@ void main() async {
     print(html.window.toString());
     print('loading info');
     await loadBoxes();
+    await loadPillars();
     runApp(const MyApp());
   } catch (e) {
     print('Error:\n$e');
@@ -47,6 +48,7 @@ void main() async {
     //html.window.parent.postMessage(message, targetOrigin)
     print('loading info');
     await loadBoxes();
+    await loadPillars();
     runApp(MyApp());
   }
 }

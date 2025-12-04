@@ -36,8 +36,17 @@ var history = Supabase.instance.client.from('change_history');
 Future loadBoxes() async {
   var res = await sb.select();
   ponBoxes = res;
-  print('loaded ${res.length} objects');
+  print('loaded ${res.length} boxes');
 }
+
+List<Map<String, dynamic>> pillars = [];
+var sbPillars = Supabase.instance.client.from('Pillars');
+Future loadPillars() async {
+  var res = await sbPillars.select();
+  pillars = res;
+  print('loaded ${res.length} pillars');
+}
+
 
 var uri = Uri.dataFromString(html.window.location.href);
 Map<String, String> params = uri.queryParameters;
