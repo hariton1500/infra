@@ -20,7 +20,7 @@ String formatDateDMYTime(dynamic value) {
 /// Загрузка истории изменений для конкретного PON бокса
 Future<List<Map<String, dynamic>>> loadBoxHistory(int boxId) async {
   try {
-    var res = await history
+    var res = await sbHistory
         .select()
         .eq('ponbox_id', boxId)
         .order('created_at', ascending: false);

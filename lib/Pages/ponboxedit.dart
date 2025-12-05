@@ -233,7 +233,7 @@ Future<void> showEditPonBoxDialog(
                                     ponBoxes[index] = res.first;
                                   }
                                   historyData['after'] = res.first;
-                                  await history.insert(historyData).select();
+                                  await sbHistory.insert(historyData).select();
                                   // ignore: use_build_context_synchronously
                                   Navigator.of(editContext).pop();
                                   // ignore: use_build_context_synchronously

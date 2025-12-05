@@ -31,7 +31,7 @@ List<Color> statusColors = [Colors.red, Colors.green, Colors.yellow, Colors.redA
 
 List<Map<String, dynamic>> ponBoxes = [];
 var sb = Supabase.instance.client.from('PON_boxes');
-var history = Supabase.instance.client.from('change_history');
+var sbHistory = Supabase.instance.client.from('change_history');
 
 Future loadBoxes() async {
   var res = await sb.select();

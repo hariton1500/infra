@@ -6,6 +6,7 @@ import 'package:infra/globals.dart';
 import 'package:infra/misc/epsg3395.dart';
 import 'package:infra/misc/tile_providers.dart';
 import 'package:infra/misc/geolocator.dart';
+import 'package:infra/models.dart';
 import 'package:infra/widgets.dart';
 import 'package:infra/Pages/ponboxshow.dart';
 import 'package:latlong2/latlong.dart';
@@ -306,15 +307,22 @@ class _HomePageState extends State<HomePage> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           ElevatedButton.icon(onPressed: () async {
-            //sbPillars.select().eq('id', selectedPillar['id']);
-            var res = await sbPillars.update({'lat': currentCenter.latitude, 'long': currentCenter.longitude}).eq('id', selectedPillar?['id']).select();
-            print(res);
-            if (res.isNotEmpty) {}
-            setState(() {
-              mode = '';
-              selectedPillar?['lat'] = currentCenter.latitude;
-              selectedPillar?['long'] = currentCenter.longitude;
-            });
+            var historyData = {
+              'pillar_id': selectedPillar?['id'],
+              'by_name': activeUser['login'],
+              'before': selectedPillar,
+            };
+            var pillar = Pillar(id: selectedPillar?['id'], lat: selectedPillar?['lat'], long: selectedPillar?['long']);
+            var res = await pillar.updatePillarPoint(newPoint: currentCenter);
+            if (res.isNotEmpty) {
+              setState(() {
+                mode = '';
+                selectedPillar?['lat'] = currentCenter.latitude;
+                selectedPillar?['long'] = currentCenter.longitude;
+              });
+              historyData['after'] = selectedPillar;
+              sbHistory.insert(historyData).then(print);
+            }
           }, label: Text('Сохранить')),
           //add delete button
         ],
