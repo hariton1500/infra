@@ -1,11 +1,9 @@
-
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:infra/globals.dart';
 import 'package:infra/misc/epsg3395.dart';
-//import 'package:infra/misc/gecoding.dart';
 import 'package:infra/misc/tile_providers.dart';
 import 'package:infra/misc/geolocator.dart';
 import 'package:infra/widgets.dart';
@@ -20,146 +18,54 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  MapController? mapController = MapController();
+  final MapController mapController = MapController();
   double currentZoom = 17.5;
-  LatLng currentCenter = LatLng(45.200051263299, 33.357208643387);
+  LatLng currentCenter = const LatLng(45.200051263299, 33.357208643387);
   int showRadius = 200;
-  int selectedPorts = 0, usedPorts = 0;
+  int selectedPorts = 0;
+  int usedPorts = 0;
   bool isSatLayer = false;
   bool hasDivider = false;
   int? dividerPorts;
   String mode = '';
-  Map<String, dynamic> selectedPillar = {};
+  Map<String, dynamic>? selectedPillar;
 
   @override
   void initState() {
-    print('[home]initState');
-    print('params: \n$params');
-    if (params.containsKey('order') && params.containsKey('lat')&& params.containsKey('long')) {
-      //getGeoCoding(params['address']!, source: 'osm');
-      print('found params["order&&lat&&long"]');
+    super.initState();
+    _initializeFromParams();
+  }
+
+  void _initializeFromParams() {
+    if (params.containsKey('order') && params.containsKey('lat') && params.containsKey('long')) {
       try {
+        final lat = double.parse(params['lat']!);
+        final lng = double.parse(params['long']!);
         setState(() {
-          currentCenter = LatLng(double.parse(params['lat']!), double.parse(params['long']!));
+          currentCenter = LatLng(lat, lng);
         });
       } catch (e) {
-        print(e);        
+        debugPrint('Ошибка парсинга координат: $e');
       }
     }
+
     if (params.containsKey('getpoint')) {
-      print('found param["getpoint"]');
       setState(() {
         mode = 'getpoint';
       });
     }
-    super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
-    //print('[home]build');
-    //print('mode: $mode');
     return Scaffold(
       appBar: AppBar(
-        title: Text('Инфраструктура PON'),
+        title: const Text('Инфраструктура PON'),
         actions: [
-          IconButton(
-            onPressed: () async {
-              try {
-                var pos = await determinePosition();
-                print(pos.toJson());
-                //print(LatLng.fromJson(pos.toJson()));
-                print(mapController?.move(LatLng(pos.latitude, pos.longitude), currentZoom));
-              } catch (e) {
-                var message = e.toString();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Не удалось определить местоположение: $message')),
-                  );
-                }
-              }
-            },
-            icon: Icon(Icons.location_searching)),
-          IconButton(
-            onPressed: () async {
-              showDialog<void>(
-                context: context,
-                builder: (context) {
-                  return Dialog(
-                    child: StatefulBuilder(
-                      builder: (BuildContext context, void Function(void Function()) setStateDialog) {
-                        return SizedBox(
-                          width: 320,
-                          height: 180,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Радиус отображения: $showRadius м'),
-                                const SizedBox(height: 8),
-                                Slider(
-                                  value: showRadius.toDouble(),
-                                  min: 50,
-                                  max: 3000,
-                                  divisions: 59,
-                                  label: '$showRadius м',
-                                  onChanged: (v) {
-                                    setStateDialog(() {});
-                                    setState(() { showRadius = v.round(); });
-                                  },
-                                ),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton(
-                                    onPressed: () => Navigator.of(context).pop(),
-                                    child: const Text('Закрыть'),
-                                  ),
-                                )
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                }
-              );
-            },
-            icon: Icon(Icons.radar)
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              switch (value) {
-                case 'ponbox':
-                  addPonBoxDialog(context);
-                  break;
-                case 'opora':
-                  addOporaDialog(context);
-                default:
-              }
-            },
-            icon: Icon(Icons.add),
-            itemBuilder: (context) {
-              return <PopupMenuEntry<String>>[
-                PopupMenuItem(
-                  value: 'ponbox',
-                  //onTap: addPonBoxDialog(context),
-                  child: Text('PON box'),
-                ),
-                PopupMenuItem(
-                  value: 'opora',
-                  //onTap: addPonBoxDialog(context),
-                  child: Text('Опора'),
-                ),
-              ];
-          }),
-          IconButton(
-            onPressed: () => setState(() {
-              isSatLayer = !isSatLayer;
-            }),
-            icon: Icon(Icons.layers)
-          ),
+          _buildLocationButton(),
+          _buildRadiusButton(),
+          _buildAddMenu(),
+          _buildLayerToggle(),
         ],
       ),
       body: Stack(
@@ -172,306 +78,430 @@ class _HomePageState extends State<HomePage> {
               zoom: currentZoom,
               maxZoom: 18,
               onPositionChanged: (position, hasGesture) {
-                //print(position);
-                currentCenter = position.center!;
-                updates();
+                if (position.center != null) {
+                  currentCenter = position.center!;
+                  setState(() {});
+                }
               },
             ),
             children: [
-              isSatLayer ? yandexMapSatTileLayer : yandexMapTileLayer,
-              //openStreetMapTileLayer,
-              CircleLayer(
-                circles: [
-                  CircleMarker(point: currentCenter, radius: showRadius.toDouble(), useRadiusInMeter: true, color: Colors.white10, borderStrokeWidth: 1, borderColor: Colors.black38),
-                  CircleMarker(point: currentCenter, radius: 1, useRadiusInMeter: true, color: Colors.white, borderStrokeWidth: 1, borderColor: Colors.black)
-                ]
-              ),
-              if (mode != 'changePillar') MarkerLayer(
-                markers:
-                    ponBoxes.where((box) {
-                        var dist = DistanceVincenty();
-                        return dist(LatLng(box['lat'], box['long']), currentCenter) <= showRadius;
-                      }).map(
-                          (ponBox) => Marker(
-                            height: currentZoom * 1.5,
-                            width: currentZoom * 1.6,
-                            point: LatLng(ponBox['lat'], ponBox['long']),
-                            builder: (context) {
-                              return GestureDetector(
-                                child: ponBoxWidget(ponBox, currentZoom),
-                                onTap: () {
-                                  print('onTap');
-                                  showPonBoxInfoSheet(
-                                    context,
-                                    ponBox,
-                                    () {
-                                      setState(() {});
-                                    },
-                                    currentMapCenter: currentCenter,
-                                  );
-                                },
-                              );
-                            }
-                          ),
-                        )
-                        .toList(),
-              ),
-              if (mode != 'changePillar') MarkerLayer(
-                markers: pillars.map((pillar) {
-                  return Marker(
-                    width: currentZoom / 3,
-                    height: currentZoom / 3,
-                    point: LatLng(pillar['lat'], pillar['long']),
-                    builder: (context) => GestureDetector(
-                      onLongPress: () {
-                        setState(() {
-                          mode = 'changePillar';
-                          selectedPillar = pillar;
-                        });
-                      },
-                      child: pillarWidget(currentZoom)
-                    )
-                  );
-                }).toList(),
-              )
+              if (isSatLayer) yandexMapSatTileLayer else yandexMapTileLayer,
+              _buildRadiusCircleLayer(),
+              _buildCenterMarker(),
+              if (mode != 'changePillar') _buildPonBoxMarkers(),
+              _buildPillarMarkers(),
+              if (mode == 'changePillar') _buildLineFromOldPillarToCenter(),
             ],
           ),
-          if (mode == 'changePillar') Align(
-            alignment: Alignment.topCenter,
-            child: Text('Режим перемещения опоры. Переместите центр карты на нужное место и нажмите "Сохранить"'),
-          ),
-          if (mode == 'changePillar') Align(
-            alignment: Alignment.bottomCenter,
-            child: Row(
-              children: [
-                ElevatedButton.icon(onPressed: () async {
-                  //sbPillars.select().eq('id', selectedPillar['id']);
-                  var res = await sbPillars.update({'lat': currentCenter.latitude, 'long': currentCenter.longitude}).eq('id', selectedPillar['id']).select();
-                  print(res);
-                  if (res.isNotEmpty) {}
-                  setState(() {
-                    mode = '';
-                    selectedPillar['lat'] = currentCenter.latitude;
-                    selectedPillar['long'] = currentCenter.longitude;
-                  });
-                }, label: Text('Сохранить')),
-                //add delete button
-              ],
-            ),
-          ),
-          if (mode == 'getpoint') Align(
-            alignment: Alignment.topCenter,
-            child: Text('Режим указания точки на карте...\nНаведите центр карты на нужную точку и нажмите кнопку\n"Сохранить координаты"', style: TextStyle(color: Colors.red),)
-          ),
-          if (mode == 'getpoint') Align(
-            alignment: Alignment.bottomCenter,
-            child: ElevatedButton.icon(onPressed: () {
-              //html.window.parent?.postMessage(jsonEncode(currentCenter.toJson()), '*');
-              final global = globalContext;
-              final opener = global.getProperty('opener'.toJS);
-              if (opener != null && !opener.isUndefined && !opener.isNull) {
-                final openerObj = opener as JSObject;
-                openerObj.callMethod(
-                  (params.containsKey('callback') ? '${params['callback']}' : 'returnGPScoodrs').toJS, 
-                  '${currentCenter.latitude} ${currentCenter.longitude}'.toJS
-                );
-              }
-              setState(() {
-                mode = '';
-              });
-            }, label: Text('Сохранить координаты'), icon: Icon(Icons.place),),
-          )
+          if (mode == 'changePillar') _buildPillarEditModeOverlay(),
+          if (mode == 'changePillar') _buildButtonSavePillar(),
+          if (mode == 'getpoint') _buildGetPointModeOverlay(),
         ],
       ),
     );
   }
 
-  addPonBoxDialog(BuildContext context) {
-    return showDialog<Map<String, dynamic>>(
+  Widget _buildLocationButton() {
+    return IconButton(
+      onPressed: () async {
+        try {
+          final pos = await determinePosition();
+          mapController.move(LatLng(pos.latitude, pos.longitude), currentZoom);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Не удалось определить местоположение: $e')),
+            );
+          }
+        }
+      },
+      icon: const Icon(Icons.location_searching),
+    );
+  }
+
+  Widget _buildRadiusButton() {
+    return IconButton(
+      onPressed: () {
+        showDialog(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('Радиус отображения'),
+              content: StatefulBuilder(
+                builder: (context, setStateDialog) => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Радиус: $showRadius м'),
+                    Slider(
+                      value: showRadius.toDouble(),
+                      min: 50,
+                      max: 3000,
+                      divisions: 59,
+                      label: '$showRadius',
+                      onChanged: (v) {
+                        setStateDialog(() => showRadius = v.round());
+                        setState(() {});
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Закрыть'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+      icon: const Icon(Icons.radar),
+    );
+  }
+
+  Widget _buildAddMenu() {
+    return PopupMenuButton<String>(
+      onSelected: (value) {
+        switch (value) {
+          case 'ponbox':
+            _showAddPonBoxDialog();
+            break;
+          case 'opora':
+            _addOpora();
+            break;
+        }
+      },
+      icon: const Icon(Icons.add),
+      itemBuilder: (context) => [
+        const PopupMenuItem(value: 'ponbox', child: Text('PON box')),
+        const PopupMenuItem(value: 'opora', child: Text('Опора')),
+      ],
+    );
+  }
+
+  Widget _buildLayerToggle() {
+    return IconButton(
+      onPressed: () => setState(() => isSatLayer = !isSatLayer),
+      icon: Icon(isSatLayer ? Icons.layers : Icons.layers_outlined),
+    );
+  }
+
+  Widget _buildRadiusCircleLayer() {
+    return CircleLayer(
+      circles: [
+        CircleMarker(
+          point: currentCenter,
+          radius: showRadius.toDouble(),
+          useRadiusInMeter: true,
+          color: Colors.white10,
+          borderStrokeWidth: 1,
+          borderColor: Colors.black38,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCenterMarker() {
+    return CircleLayer(
+      circles: [
+        if (mode != 'changePillar') CircleMarker(
+          point: currentCenter,
+          radius: 1,
+          useRadiusInMeter: true,
+          color: Colors.white,
+          borderStrokeWidth: 1,
+          borderColor: Colors.black,
+        ) else CircleMarker(
+          point: currentCenter,
+          radius: 3,
+          useRadiusInMeter: true,
+          color: Colors.green,
+          borderStrokeWidth: 1,
+          borderColor: Colors.black,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPonBoxMarkers() {
+    final distance = Distance();
+    return MarkerLayer(
+      markers: ponBoxes
+          .where((box) => distance(LatLng(box['lat'], box['long']), currentCenter) <= showRadius)
+          .map((ponBox) => Marker(
+                width: currentZoom * 1.5,
+                height: currentZoom * 1.6,
+                point: LatLng(ponBox['lat'], ponBox['long']),
+                builder: (context) => GestureDetector(
+                  child: ponBoxWidget(ponBox, currentZoom),
+                  onTap: () => showPonBoxInfoSheet(
+                    context,
+                    ponBox,
+                    () => setState(() {}),
+                    currentMapCenter: currentCenter,
+                  ),
+                ),
+              ))
+          .toList(),
+    );
+  }
+
+  Widget _buildPillarMarkers() {
+    return MarkerLayer(
+      markers: pillars.map((pillar) {
+        return Marker(
+          width: currentZoom / 3,
+          height: currentZoom / 3,
+          point: LatLng(pillar['lat'], pillar['long']),
+          builder: (context) => GestureDetector(
+            onLongPress: () {
+              setState(() {
+                mode = 'changePillar';
+                selectedPillar = pillar;
+                mapController.move(LatLng(pillar['lat'], pillar['long']), currentZoom);
+              });
+            },
+            child: pillarWidget(currentZoom),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildLineFromOldPillarToCenter() {
+    return PolylineLayer(
+      polylineCulling: true,
+      polylines: [
+        Polyline(
+          points: [
+            LatLng(selectedPillar!['lat'], selectedPillar!['long']),
+            currentCenter,
+          ]
+        )
+      ],
+    );
+  }
+  
+  Widget _buildPillarEditModeOverlay() {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        color: Colors.yellow.withOpacity(0.8),
+        child: const Text(
+          'Режим перемещения опоры.\nПереместите центр карты и нажмите "Сохранить"',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildButtonSavePillar() {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          ElevatedButton.icon(onPressed: () async {
+            //sbPillars.select().eq('id', selectedPillar['id']);
+            var res = await sbPillars.update({'lat': currentCenter.latitude, 'long': currentCenter.longitude}).eq('id', selectedPillar?['id']).select();
+            print(res);
+            if (res.isNotEmpty) {}
+            setState(() {
+              mode = '';
+              selectedPillar?['lat'] = currentCenter.latitude;
+              selectedPillar?['long'] = currentCenter.longitude;
+            });
+          }, label: Text('Сохранить')),
+          //add delete button
+        ],
+      ),
+    );    
+  }
+  
+  Widget _buildGetPointModeOverlay() {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        margin: const EdgeInsets.all(16),
+        child: ElevatedButton.icon(
+          onPressed: () {
+            final global = globalContext;
+            final opener = global.getProperty('opener'.toJS);
+            if (opener != null && !opener.isUndefined && !opener.isNull) {
+              final openerObj = opener as JSObject;
+              openerObj.callMethod(
+                (params.containsKey('callback') ? params['callback'] : 'returnGPScoodrs').toString().toJS,
+                '${currentCenter.latitude} ${currentCenter.longitude}'.toJS,
+              );
+            }
+            setState(() {
+              mode = '';
+            });
+          },
+          icon: const Icon(Icons.place),
+          label: const Text('Сохранить координаты'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAddPonBoxDialog() async {
+    int localPorts = selectedPorts;
+    int localUsed = usedPorts;
+    bool localHasDivider = hasDivider;
+    int? localDividerPorts = dividerPorts;
+
+    await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) {
-        return Dialog(
-          child: StatefulBuilder(
-            builder: (BuildContext context, void Function(void Function()) setState) { 
-              bool canAdd = selectedPorts > 0 && usedPorts <= selectedPorts;
+        bool canAdd = localPorts > 0 && localUsed <= localPorts;
+        return AlertDialog(
+          title: const Text('Добавить PON бокс'),
+          scrollable: true,
+          content: StatefulBuilder(
+            builder: (context, setStateDialog) {
+              
               return SizedBox(
                 width: 360,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.add_box, color: Theme.of(context).colorScheme.primary),
-                          const SizedBox(width: 8),
-                          Text('Добавить PON бокс', style: Theme.of(context).textTheme.titleMedium),
-                        ],
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Координаты: ${currentCenter.latitude.toStringAsFixed(6)}, ${currentCenter.longitude.toStringAsFixed(6)}'),
+                    const SizedBox(height: 16),
+                    const Text('Количество портов'),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final q in [2, 4, 8, 16])
+                          ChoiceChip(
+                            label: Text(q.toString()),
+                            selected: localPorts == q,
+                            onSelected: (_) {
+                              setStateDialog(() {
+                                localPorts = q;
+                                if (localUsed > localPorts) localUsed = localPorts;
+                              });
+                            },
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Занятых портов'),
+                    Slider(
+                      value: localUsed.toDouble().clamp(0, localPorts.toDouble()),
+                      min: 0,
+                      max: localPorts > 0 ? localPorts.toDouble() : 16,
+                      divisions: localPorts > 0 ? localPorts : 16,
+                      label: '$localUsed',
+                      onChanged: (v) {
+                        setStateDialog(() {
+                          localUsed = v.round();
+                        });
+                      },
+                    ),
+                    Text(
+                      'Занято: $localUsed из $localPorts',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    if (localUsed > localPorts)
+                      Text(
+                        'Слишком много',
+                        style: TextStyle(color: Theme.of(context).colorScheme.error),
                       ),
-                      const SizedBox(height: 12),
-                      Text('Координаты', style: Theme.of(context).textTheme.labelMedium),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Expanded(child: Text('Широта: ${currentCenter.latitude.toStringAsFixed(6)}')),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text('Долгота: ${currentCenter.longitude.toStringAsFixed(6)}')),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Text('Количество портов', style: Theme.of(context).textTheme.labelMedium),
-                      const SizedBox(height: 6),
+                    const SizedBox(height: 16),
+                    SwitchListTile(
+                      dense: true,
+                      title: const Text('Первичный делитель'),
+                      subtitle: localHasDivider && localDividerPorts != null
+                          ? Text('На $localDividerPorts портов')
+                          : null,
+                      value: localHasDivider,
+                      onChanged: (value) {
+                        setStateDialog(() {
+                          localHasDivider = value;
+                          if (!value) localDividerPorts = null;
+                        });
+                      },
+                    ),
+                    if (localHasDivider) ...[
+                      const Text('Портов делителя'),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          for (final q in [2, 4, 8, 16]) ChoiceChip(
-                            label: Text(q.toString()),
-                            selected: selectedPorts == q,
-                            onSelected: (_) {
-                              setState(() {
-                                selectedPorts = q;
-                                if (usedPorts > selectedPorts) usedPorts = selectedPorts;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Text('Занятых портов', style: Theme.of(context).textTheme.labelMedium),
-                      const SizedBox(height: 6),
-                      Slider(
-                        value: usedPorts.toDouble().clamp(0, selectedPorts.toDouble()),
-                        min: 0,
-                        max: (selectedPorts > 0 ? selectedPorts : 16).toDouble(),
-                        divisions: (selectedPorts > 0 ? selectedPorts : 16),
-                        label: '$usedPorts',
-                        onChanged: (v) {
-                          setState(() {
-                            usedPorts = v.round();
-                          });
-                        },
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Выбрано: $usedPorts из $selectedPorts', style: Theme.of(context).textTheme.bodySmall),
-                          if (usedPorts > selectedPorts) Text('Слишком много', style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SwitchListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              title: Text('Первичный делитель', style: Theme.of(context).textTheme.labelMedium),
-                              subtitle: hasDivider && dividerPorts != null ? Text('На $dividerPorts портов', style: Theme.of(context).textTheme.bodySmall) : null,
-                              value: hasDivider,
-                              onChanged: (value) {
-                                setState(() {
-                                  hasDivider = value;
-                                  if (!value) dividerPorts = null;
-                                });
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (hasDivider) ...[
-                        const SizedBox(height: 8),
-                        Text('Портов делителя', style: Theme.of(context).textTheme.labelMedium),
-                        const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final q in [2, 4, 8, 16]) ChoiceChip(
+                          for (final q in [2, 4, 8, 16])
+                            ChoiceChip(
                               label: Text(q.toString()),
-                              selected: dividerPorts == q,
+                              selected: localDividerPorts == q,
                               onSelected: (_) {
-                                setState(() {
-                                  dividerPorts = dividerPorts == q ? null : q;
+                                setStateDialog(() {
+                                  localDividerPorts = localDividerPorts == q ? null : q;
                                 });
                               },
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                      ],
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: () {
-                              hasDivider = false;
-                              dividerPorts = null;
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Отмена'),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            onPressed: canAdd ? () async {
-                              var box = {
-                                'long': currentCenter.longitude,
-                                'lat': currentCenter.latitude,
-                                'ports': selectedPorts,
-                                'used_ports': usedPorts,
-                                'added_by': activeUser['login']
-                              };
-                              if (hasDivider && dividerPorts != null) {
-                                box['has_divider'] = true;
-                                box['divider_ports'] = dividerPorts;
-                              }
-                              var res = await sb.insert(box).select();
-                              selectedPorts = 0;
-                              usedPorts = 0;
-                              hasDivider = false;
-                              dividerPorts = null;
-                              // ignore: use_build_context_synchronously
-                              Navigator.of(context).pop(res.first);
-                            } : null,
-                            icon: const Icon(Icons.check),
-                            label: const Text('Добавить'),
-                          )
                         ],
-                      )
+                      ),
                     ],
-                  ),
+                  ],
                 ),
               );
-              },
+            },
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Отмена'),
+            ),
+            ElevatedButton.icon(
+              onPressed: canAdd
+                  ? () async {
+                      final box = {
+                        'long': currentCenter.longitude,
+                        'lat': currentCenter.latitude,
+                        'ports': localPorts,
+                        'used_ports': localUsed,
+                        'added_by': activeUser['login']
+                      };
+                      if (localHasDivider && localDividerPorts != null) {
+                        box['has_divider'] = true;
+                        box['divider_ports'] = localDividerPorts;
+                      }
+                      final res = await sb.insert(box).select();
+                      if (res.isNotEmpty) {
+                        Navigator.of(context).pop(res.first);
+                      }
+                    }
+                  : null,
+              icon: const Icon(Icons.check),
+              label: const Text('Добавить'),
+            ),
+          ],
         );
+      },
+    ).then((value) {
+      if (value != null) {
+        ponBoxes.add(value);
       }
-    ).then((onValue) {
-      setState(() {
-        if (onValue != null && onValue.isNotEmpty) {
-          ponBoxes.add(onValue);
-        }
-      });
     });
   }
 
-
-  addOporaDialog(BuildContext context) async {
-    var pillar = {
+  Future<void> _addOpora() async {
+    final pillar = {
       'long': currentCenter.longitude,
       'lat': currentCenter.latitude,
       'added_by': activeUser['login']
     };
-    var res = await sbPillars.insert(pillar).select();
-    print(res);
-    setState(() {
-      if (res.isNotEmpty) pillars.add(pillar);
-    });
-  }
-
-  void updates() {
-    setState(() {});
+    final res = await sbPillars.insert(pillar).select();
+    if (res.isNotEmpty && mounted) {
+      setState(() {
+        pillars.add(pillar);
+      });
+    }
   }
 }
