@@ -8,6 +8,7 @@ import 'package:infra/misc/epsg3395.dart';
 //import 'package:infra/misc/gecoding.dart';
 import 'package:infra/misc/tile_providers.dart';
 import 'package:infra/misc/geolocator.dart';
+import 'package:infra/models.dart';
 import 'package:infra/widgets.dart';
 import 'package:infra/Pages/ponboxshow.dart';
 import 'package:latlong2/latlong.dart';
@@ -229,7 +230,7 @@ class _HomePageState extends State<HomePage> {
                           selectedPillar = pillar;
                         });
                       },
-                      child: pillarWidget(currentZoom)
+                      child: Pillar(id: null).pillarWidget(currentZoom)
                     )
                   );
                 }).toList(),

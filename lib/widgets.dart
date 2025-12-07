@@ -100,18 +100,6 @@ Widget ponBoxWidget(Map<String, dynamic> box, double zoom) {
   );
 }
 
-Widget pillarWidget(double zoom) {
-  return Container(
-    //color: Colors.green,
-    decoration: BoxDecoration(
-      color: Colors.green,
-      border: Border.all(
-        color: Colors.black
-      )
-    ),
-  );
-}
-
 Widget linkText(String text) {
   return Text('[ $text ]', style: TextStyle(fontStyle: FontStyle.italic, fontWeight: FontWeight.bold, color: Colors.blue),);
 }

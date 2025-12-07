@@ -41,10 +41,10 @@ Future loadBoxes() async {
 
 List<Map<String, dynamic>> pillars = [];
 var sbPillars = Supabase.instance.client.from('Pillars');
-Future loadPillars() async {
+Future loadPillars({bool? all}) async {
   var res = await sbPillars.select();
-  pillars = res;
-  print('loaded ${res.length} pillars');
+  pillars = (all !=null && all) ? res : res.where((p) => !p['deleted']).toList();
+  print('Loaded ${res.length} pillars');
 }
 
 

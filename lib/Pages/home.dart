@@ -10,6 +10,8 @@ import 'package:infra/models.dart';
 import 'package:infra/widgets.dart';
 import 'package:infra/Pages/ponboxshow.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:flutter_map_dragmarker/flutter_map_dragmarker.dart';
+import 'package:flutter_map_line_editor/flutter_map_line_editor.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -29,10 +31,19 @@ class _HomePageState extends State<HomePage> {
   bool hasDivider = false;
   int? dividerPorts;
   String mode = '';
+  Map<int, Pillar> addingCable = {};
+  List<LatLng> addingCablePoints = [];
   Map<String, dynamic>? selectedPillar;
+  PolyEditor? polyEditor;
 
   @override
   void initState() {
+    polyEditor = PolyEditor(
+      points: addingCablePoints,
+      pointIcon: Icon(Icons.crop_square, size: 23),
+      intermediateIcon: Icon(Icons.lens, size: 15, color: Colors.grey),
+      callbackRefresh: () => {setState(() {})},
+    );
     super.initState();
     _initializeFromParams();
   }
@@ -84,18 +95,26 @@ class _HomePageState extends State<HomePage> {
                   setState(() {});
                 }
               },
+              onTap: (tapPosition, point) {
+                if (mode.startsWith('addingcable')) {
+                  _handleTapForAddingCable(point);
+                }
+              },
             ),
             children: [
               if (isSatLayer) yandexMapSatTileLayer else yandexMapTileLayer,
-              _buildRadiusCircleLayer(),
-              _buildCenterMarker(),
+              if (!mode.startsWith('addingcable')) _buildRadiusCircleLayer(),
+              if (!mode.startsWith('addingcable')) _buildCenterMarker(),
               if (mode != 'changePillar') _buildPonBoxMarkers(),
               _buildPillarMarkers(),
               if (mode == 'changePillar') _buildLineFromOldPillarToCenter(),
+              if (mode.startsWith('addingcable')) ..._buildAddingCable(),
             ],
           ),
           if (mode == 'changePillar') _buildPillarEditModeOverlay(),
-          if (mode == 'changePillar') _buildButtonSavePillar(),
+          if (mode.startsWith('addingcable')) _buildCableEditModeOverlay(),
+          if (mode == 'changePillar') _buildPillarActions(),
+          if (mode.startsWith('addingcable')) _buildAddingCableActions(),
           if (mode == 'getpoint') _buildGetPointModeOverlay(),
         ],
       ),
@@ -172,12 +191,16 @@ class _HomePageState extends State<HomePage> {
           case 'opora':
             _addOpora();
             break;
+          case 'cable':
+            _addCable();
+            break;
         }
       },
       icon: const Icon(Icons.add),
       itemBuilder: (context) => [
         const PopupMenuItem(value: 'ponbox', child: Text('PON box')),
         const PopupMenuItem(value: 'opora', child: Text('Опора')),
+        const PopupMenuItem(value: 'cable', child: Text('Кабель')),
       ],
     );
   }
@@ -264,7 +287,7 @@ class _HomePageState extends State<HomePage> {
                 mapController.move(LatLng(pillar['lat'], pillar['long']), currentZoom);
               });
             },
-            child: pillarWidget(currentZoom),
+            child: Pillar.fromMap(pillar).pillarWidget(currentZoom),
           ),
         );
       }).toList(),
@@ -299,31 +322,110 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildButtonSavePillar() {
+  List<Widget> _buildAddingCable() {
+    //print('build cable $addingCable');
+    return [
+      PolylineLayer(
+        polylines: [
+          Polyline(
+            points: addingCablePoints
+          )
+        ]
+      ),
+      DragMarkers(
+        markers: polyEditor!.edit()
+      ),
+    ];
+  }
+
+  Widget _buildAddingCableActions() {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                //save addingCablePoints to DB
+                print('save cable $addingCablePoints');
+                
+                setState(() {
+                  mode = '';
+                });
+              },
+              label: Text('Сохранить'),
+            ),
+          )
+        ]
+      ),
+    );
+  }
+
+  _handleTapForAddingCable(LatLng pos) {
+    polyEditor!.add(addingCablePoints, pos);      
+  }
+  
+  Widget _buildCableEditModeOverlay() {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        color: Colors.yellow.withOpacity(0.8),
+        child: const Text(
+          'Режим внесения кабеля.\nДобавляйте точки крепления кабеля',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildPillarActions() {
     return Align(
       alignment: Alignment.bottomCenter,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          ElevatedButton.icon(onPressed: () async {
-            var historyData = {
-              'pillar_id': selectedPillar?['id'],
-              'by_name': activeUser['login'],
-              'before': selectedPillar,
-            };
-            var pillar = Pillar(id: selectedPillar?['id'], lat: selectedPillar?['lat'], long: selectedPillar?['long']);
-            var res = await pillar.updatePillarPoint(newPoint: currentCenter);
-            if (res.isNotEmpty) {
-              setState(() {
-                mode = '';
-                selectedPillar?['lat'] = currentCenter.latitude;
-                selectedPillar?['long'] = currentCenter.longitude;
+          ElevatedButton.icon(
+            onPressed: () async {
+              var historyData = {
+                'pillar_id': selectedPillar?['id'],
+                'by_name': activeUser['login'],
+                'before': selectedPillar,
+              };
+              var pillar = Pillar(id: selectedPillar?['id'], lat: selectedPillar?['lat'], long: selectedPillar?['long']);
+              var res = await pillar.updatePillarPoint(newPoint: currentCenter);
+              if (res.isNotEmpty) {
+                setState(() {
+                  mode = '';
+                  selectedPillar?['lat'] = currentCenter.latitude;
+                  selectedPillar?['long'] = currentCenter.longitude;
+                });
+                historyData['after'] = selectedPillar;
+                sbHistory.insert(historyData).then(print);
+              }
+            }, label: Text('Сохранить'),
+            icon: Icon(Icons.save),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              Pillar(id: selectedPillar?['id']).markAsDeleted().then((onValue) {
+                if (onValue.isNotEmpty) {
+                  setState(() {
+                    mode = '';
+                    pillars.remove(selectedPillar);
+                    selectedPillar = null;
+                  });
+                } else {
+                  reportError('Не удалось удалить опору');
+                }
               });
-              historyData['after'] = selectedPillar;
-              sbHistory.insert(historyData).then(print);
-            }
-          }, label: Text('Сохранить')),
+            },
+            label: Text('Удалить'),
+          ),
           //add delete button
         ],
       ),
@@ -511,5 +613,17 @@ class _HomePageState extends State<HomePage> {
         pillars.add(pillar);
       });
     }
+  }
+
+  Future<void> _addCable() async {
+    setState(() {
+      addingCable = {};
+      mode = 'addingcablebybutton';
+    });
+  }
+  
+  void reportError(String s) {
+    //show error message by scaffoldMessenger
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s)));
   }
 }
