@@ -337,7 +337,7 @@ class _HomePageState extends State<HomePage> {
       alignment: Alignment.topCenter,
       child: Container(
         padding: const EdgeInsets.all(12),
-        color: Colors.yellow.withOpacity(0.8),
+        color: Colors.yellow.withAlpha(200),
         child: const Text(
           'Режим перемещения опоры.\nПереместите центр карты и нажмите "Сохранить"',
           textAlign: TextAlign.center,
