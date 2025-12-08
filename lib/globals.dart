@@ -22,13 +22,25 @@ List<String> users = [
   "Nikey",
   "Masters",
   "sany7676",
-  "Arto_Black"
+  "Arto_Black",
 ];
 
 Map<String, dynamic> activeUser = {};
 
-List<String> statuses = ['Внимание', 'Нормально', 'Важно', 'Отложен', 'Завершен'];
-List<Color> statusColors = [Colors.red, Colors.green, Colors.yellow, Colors.redAccent, Colors.green];
+List<String> statuses = [
+  'Внимание',
+  'Нормально',
+  'Важно',
+  'Отложен',
+  'Завершен',
+];
+List<Color> statusColors = [
+  Colors.red,
+  Colors.green,
+  Colors.yellow,
+  Colors.redAccent,
+  Colors.green,
+];
 
 List<Map<String, dynamic>> ponBoxes = [];
 var sb = Supabase.instance.client.from('PON_boxes');
@@ -45,16 +57,19 @@ Future loadBoxes() async {
 List<Map<String, dynamic>> pillars = [];
 Future loadPillars({bool? all}) async {
   var res = await sbPillars.select();
-  pillars = (all !=null && all) ? res : res.where((p) => !p['deleted']).toList();
+  pillars =
+      (all != null && all) ? res : res.where((p) => !p['deleted']).toList();
   print('Loaded ${res.length} pillars');
 }
 
 List<Cable> cables = [];
 Future loadCables({bool? all}) async {
   var res = await sbCables.select();
-  var cablesMap = (all !=null && all) ? res : res.where((p) => !p['deleted']).toList();
+  var cablesMap =
+      (all != null && all) ? res : res.where((p) => !p['deleted']).toList();
   cables = cablesMap.map((c) => Cable.fromMap(c)).toList();
-  print('Loaded ${res.length} cables');
+  print('Loaded ${cables.length} cables');
 }
+
 var uri = Uri.dataFromString(html.window.location.href);
 Map<String, String> params = uri.queryParameters;

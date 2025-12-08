@@ -17,7 +17,9 @@ void main() async {
   );
   print('[main]starting app...');
   try {
-    print('[main]making request to https://billing.evpanet.com/admin/session_info.php');
+    print(
+      '[main]making request to https://billing.evpanet.com/admin/session_info.php',
+    );
     final request = await html.HttpRequest.request(
       'https://billing.evpanet.com/admin/session_info.php',
       method: 'GET',
@@ -36,6 +38,7 @@ void main() async {
     print('loading info');
     await loadBoxes();
     await loadPillars();
+    await loadCables();
     runApp(const MyApp());
   } catch (e) {
     print('Error:\n$e');
@@ -49,6 +52,7 @@ void main() async {
     print('loading info');
     await loadBoxes();
     await loadPillars();
+    await loadCables();
     runApp(MyApp());
   }
 }

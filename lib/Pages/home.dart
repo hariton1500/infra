@@ -49,7 +49,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _initializeFromParams() {
-    if (params.containsKey('order') && params.containsKey('lat') && params.containsKey('long')) {
+    if (params.containsKey('order') &&
+        params.containsKey('lat') &&
+        params.containsKey('long')) {
       try {
         final lat = double.parse(params['lat']!);
         final lng = double.parse(params['long']!);
@@ -131,7 +133,9 @@ class _HomePageState extends State<HomePage> {
         } catch (e) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Не удалось определить местоположение: $e')),
+              SnackBar(
+                content: Text('Не удалось определить местоположение: $e'),
+              ),
             );
           }
         }
@@ -149,24 +153,25 @@ class _HomePageState extends State<HomePage> {
             return AlertDialog(
               title: const Text('Радиус отображения'),
               content: StatefulBuilder(
-                builder: (context, setStateDialog) => Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Радиус: $showRadius м'),
-                    Slider(
-                      value: showRadius.toDouble(),
-                      min: 50,
-                      max: 3000,
-                      divisions: 59,
-                      label: '$showRadius',
-                      onChanged: (v) {
-                        setStateDialog(() => showRadius = v.round());
-                        setState(() {});
-                      },
+                builder:
+                    (context, setStateDialog) => Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Радиус: $showRadius м'),
+                        Slider(
+                          value: showRadius.toDouble(),
+                          min: 50,
+                          max: 3000,
+                          divisions: 59,
+                          label: '$showRadius',
+                          onChanged: (v) {
+                            setStateDialog(() => showRadius = v.round());
+                            setState(() {});
+                          },
+                        ),
+                      ],
                     ),
-                  ],
-                ),
               ),
               actions: [
                 TextButton(
@@ -198,11 +203,12 @@ class _HomePageState extends State<HomePage> {
         }
       },
       icon: const Icon(Icons.add),
-      itemBuilder: (context) => [
-        const PopupMenuItem(value: 'ponbox', child: Text('PON box')),
-        const PopupMenuItem(value: 'opora', child: Text('Опора')),
-        const PopupMenuItem(value: 'cable', child: Text('Кабель')),
-      ],
+      itemBuilder:
+          (context) => [
+            const PopupMenuItem(value: 'ponbox', child: Text('PON box')),
+            const PopupMenuItem(value: 'opora', child: Text('Опора')),
+            const PopupMenuItem(value: 'cable', child: Text('Кабель')),
+          ],
     );
   }
 
@@ -231,21 +237,24 @@ class _HomePageState extends State<HomePage> {
   Widget _buildCenterMarker() {
     return CircleLayer(
       circles: [
-        if (mode != 'changePillar') CircleMarker(
-          point: currentCenter,
-          radius: 1,
-          useRadiusInMeter: true,
-          color: Colors.white,
-          borderStrokeWidth: 1,
-          borderColor: Colors.black,
-        ) else CircleMarker(
-          point: currentCenter,
-          radius: 3,
-          useRadiusInMeter: true,
-          color: Colors.green,
-          borderStrokeWidth: 1,
-          borderColor: Colors.black,
-        ),
+        if (mode != 'changePillar')
+          CircleMarker(
+            point: currentCenter,
+            radius: 1,
+            useRadiusInMeter: true,
+            color: Colors.white,
+            borderStrokeWidth: 1,
+            borderColor: Colors.black,
+          )
+        else
+          CircleMarker(
+            point: currentCenter,
+            radius: 3,
+            useRadiusInMeter: true,
+            color: Colors.green,
+            borderStrokeWidth: 1,
+            borderColor: Colors.black,
+          ),
       ],
     );
   }
@@ -253,45 +262,59 @@ class _HomePageState extends State<HomePage> {
   Widget _buildPonBoxMarkers() {
     final distance = Distance();
     return MarkerLayer(
-      markers: ponBoxes
-          .where((box) => distance(LatLng(box['lat'], box['long']), currentCenter) <= showRadius)
-          .map((ponBox) => Marker(
-                width: currentZoom * 1.5,
-                height: currentZoom * 1.6,
-                point: LatLng(ponBox['lat'], ponBox['long']),
-                builder: (context) => GestureDetector(
-                  child: ponBoxWidget(ponBox, currentZoom),
-                  onTap: () => showPonBoxInfoSheet(
-                    context,
-                    ponBox,
-                    () => setState(() {}),
-                    currentMapCenter: currentCenter,
-                  ),
+      markers:
+          ponBoxes
+              .where(
+                (box) =>
+                    distance(LatLng(box['lat'], box['long']), currentCenter) <=
+                    showRadius,
+              )
+              .map(
+                (ponBox) => Marker(
+                  width: currentZoom * 1.5,
+                  height: currentZoom * 1.6,
+                  point: LatLng(ponBox['lat'], ponBox['long']),
+                  builder:
+                      (context) => GestureDetector(
+                        child: ponBoxWidget(ponBox, currentZoom),
+                        onTap:
+                            () => showPonBoxInfoSheet(
+                              context,
+                              ponBox,
+                              () => setState(() {}),
+                              currentMapCenter: currentCenter,
+                            ),
+                      ),
                 ),
-              ))
-          .toList(),
+              )
+              .toList(),
     );
   }
 
   Widget _buildPillarMarkers() {
     return MarkerLayer(
-      markers: pillars.map((pillar) {
-        return Marker(
-          width: currentZoom / 3,
-          height: currentZoom / 3,
-          point: LatLng(pillar['lat'], pillar['long']),
-          builder: (context) => GestureDetector(
-            onLongPress: () {
-              setState(() {
-                mode = 'changePillar';
-                selectedPillar = pillar;
-                mapController.move(LatLng(pillar['lat'], pillar['long']), currentZoom);
-              });
-            },
-            child: Pillar.fromMap(pillar).pillarWidget(currentZoom),
-          ),
-        );
-      }).toList(),
+      markers:
+          pillars.map((pillar) {
+            return Marker(
+              width: currentZoom / 3,
+              height: currentZoom / 3,
+              point: LatLng(pillar['lat'], pillar['long']),
+              builder:
+                  (context) => GestureDetector(
+                    onLongPress: () {
+                      setState(() {
+                        mode = 'changePillar';
+                        selectedPillar = pillar;
+                        mapController.move(
+                          LatLng(pillar['lat'], pillar['long']),
+                          currentZoom,
+                        );
+                      });
+                    },
+                    child: Pillar.fromMap(pillar).pillarWidget(currentZoom),
+                  ),
+            );
+          }).toList(),
     );
   }
 
@@ -303,12 +326,12 @@ class _HomePageState extends State<HomePage> {
           points: [
             LatLng(selectedPillar!['lat'], selectedPillar!['long']),
             currentCenter,
-          ]
-        )
+          ],
+        ),
       ],
     );
   }
-  
+
   Widget _buildPillarEditModeOverlay() {
     return Align(
       alignment: Alignment.topCenter,
@@ -324,32 +347,49 @@ class _HomePageState extends State<HomePage> {
   }
 
   List<Widget> _buildCables() {
-    //print('build cable $addingCable');
+    //print('building ${cables.length} cables');
+    var showCables =
+        cables
+            .where(
+              (c) => c.isInRadius(toPoint: currentCenter, radius: showRadius),
+            )
+            .toList();
+    //print('filtered ${showCables.length}');
     return [
       PolylineLayer(
-        polylines: cables.map((cable) => Polyline(
-          points: cable.points!,
-        )).toList(),
+        polylines:
+            showCables
+                .map(
+                  (cable) => Polyline(
+                    points: cable.points!,
+                    strokeWidth: cable.fibersNumber! / 12,
+                    //useStrokeWidthInMeter: true,
+                  ),
+                )
+                .toList(),
       ),
-      ...cables.map((cable) => MarkerLayer(
-        markers: cable.points!.map((point) => Marker(point: point, builder: (context) => Icon(Icons.crop_square_rounded))).toList(),
-      ))
+      ...showCables.map(
+        (cable) => MarkerLayer(
+          markers:
+              cable.points!
+                  .map(
+                    (point) => Marker(
+                      point: point,
+                      builder:
+                          (context) => Icon(Icons.crop_square_rounded, size: 5),
+                    ),
+                  )
+                  .toList(),
+        ),
+      ),
     ];
   }
 
   List<Widget> _buildAddingCable() {
     //print('build cable $addingCable');
     return [
-      PolylineLayer(
-        polylines: [
-          Polyline(
-            points: addingCablePoints
-          )
-        ]
-      ),
-      DragMarkers(
-        markers: polyEditor!.edit()
-      ),
+      PolylineLayer(polylines: [Polyline(points: addingCablePoints)]),
+      DragMarkers(markers: polyEditor!.edit()),
     ];
   }
 
@@ -363,14 +403,63 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.all(8.0),
             child: ElevatedButton.icon(
               onPressed: () async {
+                var fibersNumber = await showModalBottomSheet<int>(
+                  context: context,
+                  builder:
+                      (context) => Padding(
+                        padding: const EdgeInsets.all(10.0),
+                        child: Column(
+                          spacing: 10,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('Укажите количество волокон в кабеле:'),
+                            Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              runSpacing: 10,
+                              spacing: 10,
+                              children: [
+                                ...[
+                                  1,
+                                  2,
+                                  4,
+                                  8,
+                                  12,
+                                  16,
+                                  20,
+                                  24,
+                                  32,
+                                  36,
+                                  48,
+                                  64,
+                                  96,
+                                ].map(
+                                  (i) => ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.pop(context, i);
+                                    },
+                                    child: Text(i.toString()),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                );
+                if (fibersNumber == null) return;
                 //save addingCablePoints to DB
                 print('save cable $addingCablePoints');
-                var cable = Cable(points: addingCablePoints);
+                var cable = Cable(
+                  points: addingCablePoints,
+                  fibersNumber: fibersNumber,
+                );
                 var res = await cable.storeNewCable();
+                print(res);
                 if (res.isNotEmpty) {
                   addingCablePoints.clear();
-                  polyEditor = null;
+                  //polyEditor = null;
                   setState(() {
+                    cables.add(cable);
                     mode = '';
                   });
                 } else {
@@ -379,16 +468,16 @@ class _HomePageState extends State<HomePage> {
               },
               label: Text('Сохранить'),
             ),
-          )
-        ]
+          ),
+        ],
       ),
     );
   }
 
   _handleTapForAddingCable(LatLng pos) {
-    polyEditor!.add(addingCablePoints, pos);      
+    polyEditor!.add(addingCablePoints, pos);
   }
-  
+
   Widget _buildCableEditModeOverlay() {
     return Align(
       alignment: Alignment.topCenter,
@@ -402,7 +491,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
 
   Widget _buildPillarActions() {
     return Align(
@@ -418,7 +506,11 @@ class _HomePageState extends State<HomePage> {
                 'by_name': activeUser['login'],
                 'before': selectedPillar,
               };
-              var pillar = Pillar(id: selectedPillar?['id'], lat: selectedPillar?['lat'], long: selectedPillar?['long']);
+              var pillar = Pillar(
+                id: selectedPillar?['id'],
+                lat: selectedPillar?['lat'],
+                long: selectedPillar?['long'],
+              );
               var res = await pillar.updatePillarPoint(newPoint: currentCenter);
               if (res.isNotEmpty) {
                 setState(() {
@@ -429,7 +521,8 @@ class _HomePageState extends State<HomePage> {
                 historyData['after'] = selectedPillar;
                 sbHistory.insert(historyData).then(print);
               }
-            }, label: Text('Сохранить'),
+            },
+            label: Text('Сохранить'),
             icon: Icon(Icons.save),
           ),
           ElevatedButton.icon(
@@ -451,9 +544,9 @@ class _HomePageState extends State<HomePage> {
           //add delete button
         ],
       ),
-    );    
+    );
   }
-  
+
   Widget _buildGetPointModeOverlay() {
     return Align(
       alignment: Alignment.bottomCenter,
@@ -466,7 +559,11 @@ class _HomePageState extends State<HomePage> {
             if (opener != null && !opener.isUndefined && !opener.isNull) {
               final openerObj = opener as JSObject;
               openerObj.callMethod(
-                (params.containsKey('callback') ? params['callback'] : 'returnGPScoodrs').toString().toJS,
+                (params.containsKey('callback')
+                        ? params['callback']
+                        : 'returnGPScoodrs')
+                    .toString()
+                    .toJS,
                 '${currentCenter.latitude} ${currentCenter.longitude}'.toJS,
               );
             }
@@ -496,14 +593,15 @@ class _HomePageState extends State<HomePage> {
           scrollable: true,
           content: StatefulBuilder(
             builder: (context, setStateDialog) {
-              
               return SizedBox(
                 width: 360,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Координаты: ${currentCenter.latitude.toStringAsFixed(6)}, ${currentCenter.longitude.toStringAsFixed(6)}'),
+                    Text(
+                      'Координаты: ${currentCenter.latitude.toStringAsFixed(6)}, ${currentCenter.longitude.toStringAsFixed(6)}',
+                    ),
                     const SizedBox(height: 16),
                     const Text('Количество портов'),
                     Wrap(
@@ -517,7 +615,8 @@ class _HomePageState extends State<HomePage> {
                             onSelected: (_) {
                               setStateDialog(() {
                                 localPorts = q;
-                                if (localUsed > localPorts) localUsed = localPorts;
+                                if (localUsed > localPorts)
+                                  localUsed = localPorts;
                               });
                             },
                           ),
@@ -526,7 +625,10 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 16),
                     const Text('Занятых портов'),
                     Slider(
-                      value: localUsed.toDouble().clamp(0, localPorts.toDouble()),
+                      value: localUsed.toDouble().clamp(
+                        0,
+                        localPorts.toDouble(),
+                      ),
                       min: 0,
                       max: localPorts > 0 ? localPorts.toDouble() : 16,
                       divisions: localPorts > 0 ? localPorts : 16,
@@ -544,15 +646,18 @@ class _HomePageState extends State<HomePage> {
                     if (localUsed > localPorts)
                       Text(
                         'Слишком много',
-                        style: TextStyle(color: Theme.of(context).colorScheme.error),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       ),
                     const SizedBox(height: 16),
                     SwitchListTile(
                       dense: true,
                       title: const Text('Первичный делитель'),
-                      subtitle: localHasDivider && localDividerPorts != null
-                          ? Text('На $localDividerPorts портов')
-                          : null,
+                      subtitle:
+                          localHasDivider && localDividerPorts != null
+                              ? Text('На $localDividerPorts портов')
+                              : null,
                       value: localHasDivider,
                       onChanged: (value) {
                         setStateDialog(() {
@@ -573,7 +678,8 @@ class _HomePageState extends State<HomePage> {
                               selected: localDividerPorts == q,
                               onSelected: (_) {
                                 setStateDialog(() {
-                                  localDividerPorts = localDividerPorts == q ? null : q;
+                                  localDividerPorts =
+                                      localDividerPorts == q ? null : q;
                                 });
                               },
                             ),
@@ -591,25 +697,26 @@ class _HomePageState extends State<HomePage> {
               child: const Text('Отмена'),
             ),
             ElevatedButton.icon(
-              onPressed: canAdd
-                  ? () async {
-                      final box = {
-                        'long': currentCenter.longitude,
-                        'lat': currentCenter.latitude,
-                        'ports': localPorts,
-                        'used_ports': localUsed,
-                        'added_by': activeUser['login']
-                      };
-                      if (localHasDivider && localDividerPorts != null) {
-                        box['has_divider'] = true;
-                        box['divider_ports'] = localDividerPorts;
+              onPressed:
+                  canAdd
+                      ? () async {
+                        final box = {
+                          'long': currentCenter.longitude,
+                          'lat': currentCenter.latitude,
+                          'ports': localPorts,
+                          'used_ports': localUsed,
+                          'added_by': activeUser['login'],
+                        };
+                        if (localHasDivider && localDividerPorts != null) {
+                          box['has_divider'] = true;
+                          box['divider_ports'] = localDividerPorts;
+                        }
+                        final res = await sb.insert(box).select();
+                        if (res.isNotEmpty) {
+                          Navigator.of(context).pop(res.first);
+                        }
                       }
-                      final res = await sb.insert(box).select();
-                      if (res.isNotEmpty) {
-                        Navigator.of(context).pop(res.first);
-                      }
-                    }
-                  : null,
+                      : null,
               icon: const Icon(Icons.check),
               label: const Text('Добавить'),
             ),
@@ -627,7 +734,7 @@ class _HomePageState extends State<HomePage> {
     final pillar = {
       'long': currentCenter.longitude,
       'lat': currentCenter.latitude,
-      'added_by': activeUser['login']
+      'added_by': activeUser['login'],
     };
     final res = await sbPillars.insert(pillar).select();
     if (res.isNotEmpty && mounted) {
@@ -643,7 +750,7 @@ class _HomePageState extends State<HomePage> {
       mode = 'addingcablebybutton';
     });
   }
-  
+
   void reportError(String s) {
     //show error message by scaffoldMessenger
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s)));
