@@ -1,4 +1,6 @@
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:infra/globals.dart';
@@ -53,6 +55,27 @@ class Cable {
   Cable({this.id, this.fiberNumber, this.points});
 
   Cable.fromMap(Map<String, dynamic> map) : id = map['id'], fiberNumber = map['fiberNumber'], points = map['points'];
+
+  bool isInRadius({required LatLng toPoint, required int radius}) {
+    final distance = Distance();
+    return points!.any((p) => distance(toPoint, p) <= radius);
+  }
+  
+  
+  Future<List<Map<String, dynamic>>> updateCablePoints({required List<LatLng> newPoints}) async {
+    sbHistory.insert({'cable_id': id, 'before': jsonEncode(toMap()), 'after': jsonEncode((this..points=newPoints).toMap()), 'by_name': activeUser['login']});
+    return await sbCables.update({'points': jsonEncode(newPoints)}).eq('id', id!).select();
+  }
+
+  Future<List<Map<String, dynamic>>> markAsDeleted() async {
+    return await sbCables.update({'deleted': true}).eq('id', id!).select();
+  }
+
+  Future<List<Map<String, dynamic>>> storeNewCable() async {
+    return await sbCables.insert({'fiberNumber': fiberNumber, 'points': jsonEncode(points), 'created_by': activeUser['login']}).select();
+  }
+
+  Map<String, dynamic> toMap() => {'id': id, 'fiberNumber': fiberNumber, 'points': points};
 
   @override
   String toString() => 'Cable[id = $id, fiberNumber = $fiberNumber, points = $points]';

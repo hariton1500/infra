@@ -107,6 +107,7 @@ class _HomePageState extends State<HomePage> {
               if (!mode.startsWith('addingcable')) _buildCenterMarker(),
               if (mode != 'changePillar') _buildPonBoxMarkers(),
               _buildPillarMarkers(),
+              ..._buildCables(),
               if (mode == 'changePillar') _buildLineFromOldPillarToCenter(),
               if (mode.startsWith('addingcable')) ..._buildAddingCable(),
             ],
@@ -322,6 +323,20 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  List<Widget> _buildCables() {
+    //print('build cable $addingCable');
+    return [
+      PolylineLayer(
+        polylines: cables.map((cable) => Polyline(
+          points: cable.points!,
+        )).toList(),
+      ),
+      ...cables.map((cable) => MarkerLayer(
+        markers: cable.points!.map((point) => Marker(point: point, builder: (context) => Icon(Icons.crop_square_rounded))).toList(),
+      ))
+    ];
+  }
+
   List<Widget> _buildAddingCable() {
     //print('build cable $addingCable');
     return [
@@ -347,13 +362,20 @@ class _HomePageState extends State<HomePage> {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: ElevatedButton.icon(
-              onPressed: () {
+              onPressed: () async {
                 //save addingCablePoints to DB
                 print('save cable $addingCablePoints');
-                
-                setState(() {
-                  mode = '';
-                });
+                var cable = Cable(points: addingCablePoints);
+                var res = await cable.storeNewCable();
+                if (res.isNotEmpty) {
+                  addingCablePoints.clear();
+                  polyEditor = null;
+                  setState(() {
+                    mode = '';
+                  });
+                } else {
+                  reportError('Ошибка сохранения кабеля');
+                }
               },
               label: Text('Сохранить'),
             ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:infra/models.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universal_html/html.dart' as html;
 
@@ -48,6 +49,12 @@ Future loadPillars({bool? all}) async {
   print('Loaded ${res.length} pillars');
 }
 
-
+List<Cable> cables = [];
+Future loadCables({bool? all}) async {
+  var res = await sbCables.select();
+  var cablesMap = (all !=null && all) ? res : res.where((p) => !p['deleted']).toList();
+  cables = cablesMap.map((c) => Cable.fromMap(c)).toList();
+  print('Loaded ${res.length} cables');
+}
 var uri = Uri.dataFromString(html.window.location.href);
 Map<String, String> params = uri.queryParameters;
