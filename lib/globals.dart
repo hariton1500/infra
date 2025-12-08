@@ -32,6 +32,8 @@ List<Color> statusColors = [Colors.red, Colors.green, Colors.yellow, Colors.redA
 List<Map<String, dynamic>> ponBoxes = [];
 var sb = Supabase.instance.client.from('PON_boxes');
 var sbHistory = Supabase.instance.client.from('change_history');
+var sbPillars = Supabase.instance.client.from('Pillars');
+var sbCables = Supabase.instance.client.from('Cables');
 
 Future loadBoxes() async {
   var res = await sb.select();
@@ -40,7 +42,6 @@ Future loadBoxes() async {
 }
 
 List<Map<String, dynamic>> pillars = [];
-var sbPillars = Supabase.instance.client.from('Pillars');
 Future loadPillars({bool? all}) async {
   var res = await sbPillars.select();
   pillars = (all !=null && all) ? res : res.where((p) => !p['deleted']).toList();

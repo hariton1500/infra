@@ -45,3 +45,15 @@ class Pillar extends Entity {
 class PonBox extends Entity {
   PonBox({required super.id, required super.lat, required super.long});
 }
+
+class Cable {
+  int? id;
+  int? fiberNumber;
+  List<LatLng>? points;
+  Cable({this.id, this.fiberNumber, this.points});
+
+  Cable.fromMap(Map<String, dynamic> map) : id = map['id'], fiberNumber = map['fiberNumber'], points = map['points'];
+
+  @override
+  String toString() => 'Cable[id = $id, fiberNumber = $fiberNumber, points = $points]';
+}
