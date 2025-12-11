@@ -347,7 +347,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   List<Widget> _buildCables() {
-    //print('building ${cables.length} cables');
+    //print('building cables:\n$cables');
     var showCables =
         cables
             .where(
@@ -448,18 +448,18 @@ class _HomePageState extends State<HomePage> {
                 );
                 if (fibersNumber == null) return;
                 //save addingCablePoints to DB
-                print('save cable $addingCablePoints');
+                print('save cable:\n $addingCablePoints');
                 var cable = Cable(
                   points: addingCablePoints,
                   fibersNumber: fibersNumber,
                 );
                 var res = await cable.storeNewCable();
+                cables.add(Cable.fromMap(res.first));
                 print(res);
                 if (res.isNotEmpty) {
                   addingCablePoints.clear();
                   //polyEditor = null;
                   setState(() {
-                    cables.add(cable);
                     mode = '';
                   });
                 } else {
