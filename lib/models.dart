@@ -99,6 +99,19 @@ class Cable {
     }).select();
   }
 
+  Future<List<Map<String, dynamic>>>storeCable(Cable? cable) async {
+    if (cable == null) {
+      return storeNewCable();
+    } else {
+      return await sbCables.update({
+        'fibers_number': fibersNumber,
+        'points': (points),
+        'created_by': activeUser['login'],
+      }).eq('id', id!).select();
+    }
+  }
+
+
   Map<String, dynamic> toMap() => {
     'id': id,
     'fibers_number': fibersNumber,
@@ -108,4 +121,5 @@ class Cable {
   @override
   String toString() =>
       'Cable[id = $id, fibersNumber = $fibersNumber, points = $points]';
+
 }

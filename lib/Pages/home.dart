@@ -31,7 +31,7 @@ class _HomePageState extends State<HomePage> {
   bool hasDivider = false;
   int? dividerPorts;
   String mode = '';
-  Map<int, Pillar> addingCable = {};
+  Cable addingCable = Cable(points: []);
   List<LatLng> addingCablePoints = [];
   Map<String, dynamic>? selectedPillar;
   PolyEditor? polyEditor;
@@ -39,7 +39,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     polyEditor = PolyEditor(
-      points: addingCablePoints,
+      points: addingCable.points!,
       pointIcon: Icon(Icons.crop_square, size: 23),
       intermediateIcon: Icon(Icons.lens, size: 15, color: Colors.grey),
       callbackRefresh: () => {setState(() {})},
@@ -376,7 +376,21 @@ class _HomePageState extends State<HomePage> {
                     (point) => Marker(
                       point: point,
                       builder:
-                          (context) => Icon(Icons.crop_square_rounded, size: 5),
+                          (context) => GestureDetector(
+                            child: Icon(Icons.crop_square_rounded, size: 5),
+                            onLongPress: () {
+                              setState(() {
+                                mode = 'addingcableandchange';
+                                addingCable = cable;
+                                polyEditor = PolyEditor(
+                                  points: addingCable.points!,
+                                  pointIcon: Icon(Icons.crop_square, size: 23),
+                                  intermediateIcon: Icon(Icons.lens, size: 15, color: Colors.grey),
+                                  callbackRefresh: () => {setState(() {})},
+                                );
+                              });
+                            },
+                          ),
                     ),
                   )
                   .toList(),
@@ -403,7 +417,8 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.all(8.0),
             child: ElevatedButton.icon(
               onPressed: () async {
-                var fibersNumber = await showModalBottomSheet<int>(
+                int? fibersNumber = addingCable.fibersNumber;
+                int? dialogRes = await showModalBottomSheet<int>(
                   context: context,
                   builder:
                       (context) => Padding(
@@ -437,7 +452,7 @@ class _HomePageState extends State<HomePage> {
                                     onPressed: () {
                                       Navigator.pop(context, i);
                                     },
-                                    child: Text(i.toString()),
+                                    child: addingCable.fibersNumber != null && addingCable.fibersNumber == i ? Text(i.toString(), style: TextStyle(fontWeight: FontWeight.bold),) : Text(i.toString()),
                                   ),
                                 ),
                               ],
@@ -446,20 +461,17 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                 );
+                if (dialogRes != null) fibersNumber = dialogRes;
                 if (fibersNumber == null) return;
                 //save addingCablePoints to DB
-                print('save cable:\n $addingCablePoints');
-                var cable = Cable(
-                  points: addingCablePoints,
-                  fibersNumber: fibersNumber,
-                );
-                var res = await cable.storeNewCable();
-                cables.add(Cable.fromMap(res.first));
-                print(res);
+                print('save cable:\n $addingCable');
+                addingCable.fibersNumber = fibersNumber;
+                var res = await addingCable.storeCable(mode == 'addingcablenew' ? null : addingCable);
+                print('[DB]:\n$res');
                 if (res.isNotEmpty) {
-                  addingCablePoints.clear();
-                  //polyEditor = null;
                   setState(() {
+                    addingCable.id = res.first['id'];
+                    cables.add(addingCable);
                     mode = '';
                   });
                 } else {
@@ -475,7 +487,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   _handleTapForAddingCable(LatLng pos) {
-    polyEditor!.add(addingCablePoints, pos);
+    polyEditor!.add(addingCable.points!, pos);
   }
 
   Widget _buildCableEditModeOverlay() {
@@ -483,7 +495,7 @@ class _HomePageState extends State<HomePage> {
       alignment: Alignment.topCenter,
       child: Container(
         padding: const EdgeInsets.all(12),
-        color: Colors.yellow.withOpacity(0.8),
+        color: Colors.yellow.withValues(alpha: 0.8),
         child: const Text(
           'Режим внесения кабеля.\nДобавляйте точки крепления кабеля',
           textAlign: TextAlign.center,
@@ -615,8 +627,9 @@ class _HomePageState extends State<HomePage> {
                             onSelected: (_) {
                               setStateDialog(() {
                                 localPorts = q;
-                                if (localUsed > localPorts)
+                                if (localUsed > localPorts) {
                                   localUsed = localPorts;
+                                }
                               });
                             },
                           ),
@@ -746,8 +759,8 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _addCable() async {
     setState(() {
-      addingCable = {};
-      mode = 'addingcablebybutton';
+      addingCable = Cable(points: []);
+      mode = 'addingcablenew';
     });
   }
 
