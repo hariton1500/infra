@@ -202,9 +202,6 @@ class _HomePageState extends State<HomePage> {
           case 'ponbox':
             _showAddPonBoxDialog();
             break;
-          case 'opora':
-            _addOpora();
-            break;
           case 'cable':
             _addCable();
             break;
@@ -214,7 +211,7 @@ class _HomePageState extends State<HomePage> {
       itemBuilder:
           (context) => [
             const PopupMenuItem(value: 'ponbox', child: Text('PON box')),
-            const PopupMenuItem(value: 'opora', child: Text('Опора')),
+            //const PopupMenuItem(value: 'opora', child: Text('Опора')),
             const PopupMenuItem(value: 'cable', child: Text('Кабель')),
           ],
     );
