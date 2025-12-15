@@ -25,22 +25,23 @@ List<String> users = [
   "Arto_Black",
 ];
 
-Map<String, dynamic> activeUser = {};
+Map<int, Color> fibers = {
+  1 : Colors.grey,
+  2 : Colors.blue,
+  4 : Colors.green,
+  8 : Colors.yellow,
+  12 : Colors.red,
+  16 : Colors.pink,
+  20 : Colors.black,
+  24 : Colors.black,
+  32 : Colors.black,
+  36 : Colors.black,
+  48 : Colors.black,
+  64 : Colors.black,
+  96 : Colors.black,
+};
 
-List<String> statuses = [
-  'Внимание',
-  'Нормально',
-  'Важно',
-  'Отложен',
-  'Завершен',
-];
-List<Color> statusColors = [
-  Colors.red,
-  Colors.green,
-  Colors.yellow,
-  Colors.redAccent,
-  Colors.green,
-];
+Map<String, dynamic> activeUser = {};
 
 List<Map<String, dynamic>> ponBoxes = [];
 var sb = Supabase.instance.client.from('PON_boxes');

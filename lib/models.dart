@@ -59,12 +59,13 @@ class Cable {
   int? id;
   int? fibersNumber;
   List<LatLng>? points;
+  String? comment;
   Cable({this.id, this.fibersNumber, this.points});
 
   Cable.fromMap(Map<String, dynamic> map) {
     id = map['id'];
     fibersNumber = map['fibers_number'];
-    print(map['points']);
+    comment = map['comment'];
     points = List<LatLng>.from(
       (map['points'] as List).map((e) => LatLng.fromJson(e)).toList(),
     );
@@ -75,16 +76,16 @@ class Cable {
     return points!.any((p) => distance(toPoint, p) <= radius);
   }
 
-  Future<List<Map<String, dynamic>>> updateCablePoints({
-    required List<LatLng> newPoints,
+  Future<List<Map<String, dynamic>>> updateCableHistory({
+    required Map<String, dynamic> before
   }) async {
-    sbHistory.insert({
+    return sbHistory.insert({
       'cable_id': id,
-      'before': toMap(),
-      'after': ((this..points = newPoints).toMap()),
+      'before': before,
+      'after': toMap(),
       'by_name': activeUser['login'],
-    });
-    return await sbCables.update({'points': newPoints}).eq('id', id!).select();
+      //'comment': comment,
+    }).select();
   }
 
   Future<List<Map<String, dynamic>>> markAsDeleted() async {
@@ -111,15 +112,24 @@ class Cable {
     }
   }
 
-
   Map<String, dynamic> toMap() => {
     'id': id,
     'fibers_number': fibersNumber,
     'points': points,
+    'comment': comment,
   };
+
+  int cableLength() {
+    if (points == null) return 0;
+    int sum = 0;
+    for (int i = 1; i < points!.length; i++) {
+      sum += Distance().distance(points![i - 1], points![i]).toInt();
+    }
+    return sum;
+  }
 
   @override
   String toString() =>
-      'Cable[id = $id, fibersNumber = $fibersNumber, points = $points]';
+      'Cable[id = $id\nfibersNumber = $fibersNumber\npoints = $points\ncomment = $comment]';
 
 }

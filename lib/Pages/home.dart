@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'package:flutter/material.dart';
@@ -33,8 +34,9 @@ class _HomePageState extends State<HomePage> {
   String mode = '';
   Cable addingCable = Cable(points: []);
   List<LatLng> addingCablePoints = [];
-  Map<String, dynamic>? selectedPillar;
+  Map<String, dynamic>? selectedPillar, before;
   PolyEditor? polyEditor;
+  TextEditingController commentController = TextEditingController();
 
   @override
   void initState() {
@@ -66,6 +68,12 @@ class _HomePageState extends State<HomePage> {
     if (params.containsKey('getpoint')) {
       setState(() {
         mode = 'getpoint';
+      });
+    }
+
+    if (params.containsKey('getcable')) {
+      setState(() {
+        mode = 'addingcablegetcable';
       });
     }
   }
@@ -361,6 +369,7 @@ class _HomePageState extends State<HomePage> {
             showCables
                 .map(
                   (cable) => Polyline(
+                    color: fibers[cable.fibersNumber]!,
                     points: cable.points!,
                     strokeWidth: cable.fibersNumber! / 12,
                     //useStrokeWidthInMeter: true,
@@ -379,6 +388,7 @@ class _HomePageState extends State<HomePage> {
                           (context) => GestureDetector(
                             child: Icon(Icons.crop_square_rounded, size: 5),
                             onLongPress: () {
+                              before = jsonDecode(jsonEncode(cable.toMap()));
                               setState(() {
                                 mode = 'addingcableandchange';
                                 addingCable = cable;
@@ -413,10 +423,21 @@ class _HomePageState extends State<HomePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          ElevatedButton.icon(
+            icon: Icon(Icons.cancel),
+            label: Text('Отмена'),
+            onPressed: () async {
+              await loadCables();
+              setState(() {
+                mode = '';
+              });
+            },
+          ),
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: ElevatedButton.icon(
               onPressed: () async {
+                commentController.text = addingCable.comment ?? '';
                 int? fibersNumber = addingCable.fibersNumber;
                 int? dialogRes = await showModalBottomSheet<int>(
                   context: context,
@@ -427,27 +448,16 @@ class _HomePageState extends State<HomePage> {
                           spacing: 10,
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            TextField(
+                              controller: commentController,
+                            ),
                             Text('Укажите количество волокон в кабеле:'),
                             Wrap(
                               crossAxisAlignment: WrapCrossAlignment.center,
                               runSpacing: 10,
                               spacing: 10,
                               children: [
-                                ...[
-                                  1,
-                                  2,
-                                  4,
-                                  8,
-                                  12,
-                                  16,
-                                  20,
-                                  24,
-                                  32,
-                                  36,
-                                  48,
-                                  64,
-                                  96,
-                                ].map(
+                                ...fibers.keys.map(
                                   (i) => ElevatedButton(
                                     onPressed: () {
                                       Navigator.pop(context, i);
@@ -461,8 +471,27 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                 );
-                if (dialogRes != null) fibersNumber = dialogRes;
-                if (fibersNumber == null) return;
+                if (dialogRes != null) {
+                  fibersNumber = dialogRes;
+                  addingCable.comment = commentController.text;
+                } else {
+                  return;
+                }
+                if (mode.contains('getcable')) {
+                  final global = globalContext;
+                  final opener = global.getProperty('opener'.toJS);
+                  if (opener != null && !opener.isUndefined && !opener.isNull) {
+                    final openerObj = opener as JSObject;
+                    openerObj.callMethod(
+                      (params.containsKey('callback')
+                              ? params['callback']
+                              : 'returnGPScoodrs')
+                          .toString()
+                          .toJS,
+                      jsonEncode(addingCable.toMap()).toJS,
+                    );
+                  }
+                }
                 //save addingCablePoints to DB
                 print('save cable:\n $addingCable');
                 addingCable.fibersNumber = fibersNumber;
@@ -472,13 +501,15 @@ class _HomePageState extends State<HomePage> {
                   setState(() {
                     addingCable.id = res.first['id'];
                     cables.add(addingCable);
+                    print('save to history');
+                    addingCable.updateCableHistory(before: before!).then((onValue) => print('[DB History result]\n$onValue'));
                     mode = '';
                   });
                 } else {
                   reportError('Ошибка сохранения кабеля');
                 }
               },
-              label: Text('Сохранить'),
+              label: Text('Сохранить [${addingCable.cableLength()} м.]'),
             ),
           ),
         ],
