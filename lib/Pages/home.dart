@@ -106,16 +106,18 @@ class _HomePageState extends State<HomePage> {
                 }
               },
               onTap: (tapPosition, point) {
+                print('FlutterMap.options onTap: $point');
                 if (mode.startsWith('addingcable')) {
                   _handleTapForAddingCable(point);
                 }
+                _handleTap(point);
               },
             ),
             children: [
               if (isSatLayer) yandexMapSatTileLayer else yandexMapTileLayer,
               if (!mode.startsWith('addingcable')) _buildRadiusCircleLayer(),
               if (!mode.startsWith('addingcable')) _buildCenterMarker(),
-              if (mode != 'changePillar') _buildPonBoxMarkers(),
+              if (true) _buildPonBoxMarkers(),
               _buildPillarMarkers(),
               ..._buildCables(),
               if (mode == 'changePillar') _buildLineFromOldPillarToCenter(),
@@ -280,16 +282,7 @@ class _HomePageState extends State<HomePage> {
                   height: currentZoom * 1.6,
                   point: LatLng(ponBox['lat'], ponBox['long']),
                   builder:
-                      (context) => GestureDetector(
-                        child: ponBoxWidget(ponBox, currentZoom),
-                        onTap:
-                            () => showPonBoxInfoSheet(
-                              context,
-                              ponBox,
-                              () => setState(() {}),
-                              currentMapCenter: currentCenter,
-                            ),
-                      ),
+                      (context) => ponBoxWidget(ponBox, currentZoom),
                 ),
               )
               .toList(),
@@ -771,6 +764,7 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  /*
   Future<void> _addOpora() async {
     final pillar = {
       'long': currentCenter.longitude,
@@ -783,7 +777,7 @@ class _HomePageState extends State<HomePage> {
         pillars.add(pillar);
       });
     }
-  }
+  }*/
 
   Future<void> _addCable() async {
     setState(() {
@@ -795,5 +789,17 @@ class _HomePageState extends State<HomePage> {
   void reportError(String s) {
     //show error message by scaffoldMessenger
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s)));
+  }
+  
+  void _handleTap(LatLng point) {
+    var resbox = ponBoxes.firstWhere((box) => Distance().distance(LatLng(box['lat'], box['long']), point) <= 6, orElse: () => {},);
+    if (resbox.isNotEmpty) {
+      showPonBoxInfoSheet(
+        context,
+        resbox,
+        () => setState(() {}),
+        currentMapCenter: currentCenter,
+      );
+    }
   }
 }
