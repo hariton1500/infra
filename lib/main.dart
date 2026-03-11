@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:infra/Pages/home.dart';
+import 'package:infra/Pages/start.dart';
 import 'package:infra/globals.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universal_html/html.dart' as html;
@@ -37,7 +38,7 @@ void main() async {
     print(html.window.toString());
     print('loading info');
     await loadBoxes();
-    await loadPillars();
+    //await loadPillars();
     await loadCables();
     runApp(const MyApp());
   } catch (e) {
@@ -51,7 +52,7 @@ void main() async {
     //html.window.parent.postMessage(message, targetOrigin)
     print('loading info');
     await loadBoxes();
-    await loadPillars();
+    //await loadPillars();
     await loadCables();
     runApp(MyApp());
   }
@@ -70,7 +71,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const HomePage(),
+      home: const StartPage(),
     );
   }
 }
