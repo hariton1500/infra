@@ -1,8 +1,10 @@
 ﻿import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:infra/Pages/muff_location_picker.dart';
 import 'package:infra/globals.dart';
+import 'package:infra/misc/tile_providers.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -32,6 +34,11 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
   bool _syncing = false;
   // Таймер авто-синхронизации.
   Timer? _syncTimer;
+  // Режим отображения: список или карта.
+  bool _mapView = false;
+  // Контроллер карты и масштаб.
+  final MapController _mapController = MapController();
+  double _mapZoom = 14;
 
   static int _nextMuffId = 1;
   static final List<Map<String, dynamic>> _muffStore = [];
@@ -487,6 +494,7 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
       muff['location_lng'] = res.longitude;
       _touchMuff(muff);
       await _persist();
+      await _loadMuffs();
       setState(() {});
     }
   }
@@ -987,6 +995,11 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
         title: const Text('Блокнот муфт'),
         actions: [
           IconButton(
+            onPressed: () => setState(() => _mapView = !_mapView),
+            icon: Icon(_mapView ? Icons.list : Icons.map),
+            tooltip: _mapView ? 'Список' : 'Карта',
+          ),
+          IconButton(
             onPressed: _loadMuffs,
             icon: const Icon(Icons.refresh),
             tooltip: 'Обновить',
@@ -1011,6 +1024,9 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
+          if (_mapView) {
+            return _buildMapPane();
+          }
           if (constraints.maxWidth >= 900) {
             return Row(
               children: [
@@ -1025,6 +1041,103 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
               : _buildDetailPane(showBack: true);
         },
       ),
+    );
+  }
+
+  Widget _buildMapPane() {
+    // Карта муфт с маркерами.
+    final muffsWithCoords =
+        _muffs.where((m) => m['location_lat'] != null && m['location_lng'] != null).toList();
+    final center = muffsWithCoords.isNotEmpty
+        ? LatLng(
+            muffsWithCoords.first['location_lat'] as double,
+            muffsWithCoords.first['location_lng'] as double,
+          )
+        : const LatLng(55.751244, 37.618423);
+
+    return FlutterMap(
+      mapController: _mapController,
+      options: MapOptions(
+        center: center,
+        zoom: _mapZoom,
+        maxZoom: 19,
+        onPositionChanged: (pos, _) {
+          if (pos.zoom != null) _mapZoom = pos.zoom!;
+        },
+      ),
+      children: [
+        yandexMapTileLayer,
+        MarkerLayer(
+          markers:
+              muffsWithCoords.map((muff) {
+                final point = LatLng(
+                  muff['location_lat'] as double,
+                  muff['location_lng'] as double,
+                );
+                return Marker(
+                  point: point,
+                  width: 40,
+                  height: 40,
+                  builder:
+                      (context) => GestureDetector(
+                        onTap: () => _showMuffFromMap(muff),
+                        child: const Icon(Icons.place, color: Colors.red, size: 32),
+                      ),
+                );
+              }).toList(),
+        ),
+      ],
+    );
+  }
+
+  void _showMuffFromMap(Map<String, dynamic> muff) {
+    // Быстрый просмотр муфты из карты.
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                muff['name'] ?? 'Без названия',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 6),
+              Text(muff['location'] ?? ''),
+              const SizedBox(height: 6),
+              Text(
+                '${(muff['location_lat'] as double).toStringAsFixed(6)}, '
+                '${(muff['location_lng'] as double).toStringAsFixed(6)}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Закрыть'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectedMuff = muff;
+                        _mapView = false;
+                      });
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('Открыть'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -1141,6 +1254,7 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
                               muff['location_lng'] = res.longitude;
                               _touchMuff(muff);
                               await _persist();
+                              await _loadMuffs();
                               setState(() {});
                             }
                           },
@@ -1181,6 +1295,7 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
                                   muff['location_lng'] = res.longitude;
                                   _touchMuff(muff);
                                   await _persist();
+                                  await _loadMuffs();
                                   setState(() {});
                                 }
                               },

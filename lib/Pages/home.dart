@@ -1,3 +1,4 @@
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
@@ -33,19 +34,258 @@ class _HomePageState extends State<HomePage> {
   int? dividerPorts;
   String mode = '';
   Cable addingCable = Cable(points: []);
-  List<LatLng> addingCablePoints = [];
+  bool isEditingCable = false;
   Map<String, dynamic>? selectedPillar, before;
-  PolyEditor? polyEditor;
+  late PolyEditor polyEditor;
   TextEditingController commentController = TextEditingController();
+  LatLng? _lastAddedPoint;
+  int _lastAddedTick = 0;
+  Timer? _lastAddedTimer;
 
-  @override
-  void initState() {
+  static const int _minCablePoints = 2;
+
+  void _resetPolyEditor() {
     polyEditor = PolyEditor(
       points: addingCable.points!,
       pointIcon: Icon(Icons.crop_square, size: 23),
       intermediateIcon: Icon(Icons.lens, size: 15, color: Colors.grey),
       callbackRefresh: () => {setState(() {})},
     );
+  }
+
+  @override
+  void dispose() {
+    _lastAddedTimer?.cancel();
+    commentController.dispose();
+    super.dispose();
+  }
+
+  void _startEditCable(Cable cable) {
+    before = jsonDecode(jsonEncode(cable.toMap()));
+    setState(() {
+      mode = 'addingcableandchange';
+      addingCable = cable;
+      isEditingCable = true;
+      _resetPolyEditor();
+    });
+    _fitToCable(cable);
+  }
+
+  void _fitToCable(Cable cable) {
+    final points = cable.points ?? const <LatLng>[];
+    if (points.length < 2) return;
+    final bounds = LatLngBounds.fromPoints(points);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      mapController.fitBounds(
+        bounds,
+        options: const FitBoundsOptions(
+          padding: EdgeInsets.all(40),
+        ),
+      );
+    });
+  }
+
+  Map<String, dynamic> _cableSnapshot(dynamic source) {
+    final map = source is Cable ? source.toMap() : Map<String, dynamic>.from(source as Map);
+    return {
+      'fibers_number': map['fibers_number'],
+      'comment': (map['comment'] ?? '').toString(),
+      'points': _pointsSnapshot(map['points']),
+    };
+  }
+
+  List<List<double>> _pointsSnapshot(dynamic points) {
+    if (points == null) return const <List<double>>[];
+    if (points is List<LatLng>) {
+      return points.map((p) => [p.latitude, p.longitude]).toList();
+    }
+    if (points is List) {
+      return points.map<List<double>>((p) {
+        if (p is LatLng) return [p.latitude, p.longitude];
+        if (p is List && p.length >= 2) {
+          return [p[0] as double, p[1] as double];
+        }
+        if (p is Map) {
+          return [
+            (p['lat'] as num).toDouble(),
+            (p['lng'] as num?)?.toDouble() ?? (p['long'] as num).toDouble(),
+          ];
+        }
+        return [0, 0];
+      }).toList();
+    }
+    return const <List<double>>[];
+  }
+
+  bool _hasUnsavedCableChanges() {
+    if (isEditingCable && before != null) {
+      final current = _cableSnapshot(addingCable);
+      final prev = _cableSnapshot(before);
+      return jsonEncode(current) != jsonEncode(prev);
+    }
+    final points = addingCable.points ?? const <LatLng>[];
+    final hasPoints = points.isNotEmpty;
+    final hasComment = (addingCable.comment ?? '').trim().isNotEmpty;
+    final hasFibers = addingCable.fibersNumber != null;
+    return hasPoints || hasComment || hasFibers;
+  }
+
+  Future<bool> _confirmDiscardCableChanges() async {
+    if (!_hasUnsavedCableChanges()) return true;
+    final res = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Отменить изменения?'),
+            content: const Text('Несохранённые изменения будут потеряны.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Остаться'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Отменить'),
+              ),
+            ],
+          ),
+    );
+    return res == true;
+  }
+
+  Widget _buildModeIndicator() {
+    String? label;
+    if (mode.startsWith('addingcable')) {
+      label = 'Добавление кабеля';
+    } else if (mode == 'changePillar') {
+      label = 'Перемещение опоры';
+    } else if (mode == 'getpoint') {
+      label = 'Выбор точки';
+    }
+    if (label == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(label, style: const TextStyle(fontSize: 12)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRadiusIndicator() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Center(
+        child: Text('R:$showRadius м', style: const TextStyle(fontSize: 12)),
+      ),
+    );
+  }
+
+  Widget _buildAddingCableHint() {
+    final pointsCount = addingCable.points?.length ?? 0;
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 88, left: 16, right: 16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.9),
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 6,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.timeline, size: 16),
+              const SizedBox(width: 8),
+              Text('Добавьте точки. Сейчас: $pointsCount'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLastPointMarker() {
+    final point = _lastAddedPoint;
+    if (point == null) return const SizedBox.shrink();
+    final key = ValueKey(_lastAddedTick);
+    return MarkerLayer(
+      markers: [
+        Marker(
+          width: 30,
+          height: 30,
+          point: point,
+          builder:
+              (context) => TweenAnimationBuilder<double>(
+                key: key,
+                tween: Tween(begin: 1, end: 0),
+                duration: const Duration(milliseconds: 700),
+                builder:
+                    (context, value, child) => Opacity(
+                      opacity: value,
+                      child: Transform.scale(
+                        scale: 0.6 + 0.6 * value,
+                        child: child,
+                      ),
+                    ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.5),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.deepOrange, width: 2),
+                  ),
+                ),
+              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCableTapTargets(List<Cable> cables) {
+    final markers = <Marker>[];
+    for (final cable in cables) {
+      final points = cable.points ?? const <LatLng>[];
+      for (int i = 0; i < points.length - 1; i++) {
+        final p1 = points[i];
+        final p2 = points[i + 1];
+        final mid = LatLng(
+          (p1.latitude + p2.latitude) / 2,
+          (p1.longitude + p2.longitude) / 2,
+        );
+        markers.add(
+          Marker(
+            width: 26,
+            height: 26,
+            point: mid,
+            builder:
+                (context) => GestureDetector(
+                  onTap: () => _startEditCable(cable),
+                  child: Container(color: Colors.transparent),
+                ),
+          ),
+        );
+      }
+    }
+    if (markers.isEmpty) return const SizedBox.shrink();
+    return MarkerLayer(markers: markers);
+  }
+
+  @override
+  void initState() {
+    _resetPolyEditor();
     super.initState();
     _initializeFromParams();
   }
@@ -86,8 +326,10 @@ class _HomePageState extends State<HomePage> {
         actions: [
           _buildLocationButton(),
           _buildRadiusButton(),
+          _buildRadiusIndicator(),
           _buildAddMenu(),
           _buildLayerToggle(),
+          _buildModeIndicator(),
         ],
       ),
       body: Stack(
@@ -382,6 +624,7 @@ class _HomePageState extends State<HomePage> {
                               setState(() {
                                 mode = 'addingcableandchange';
                                 addingCable = cable;
+                                isEditingCable = true;
                                 polyEditor = PolyEditor(
                                   points: addingCable.points!,
                                   pointIcon: Icon(Icons.crop_square, size: 23),
@@ -402,8 +645,8 @@ class _HomePageState extends State<HomePage> {
   List<Widget> _buildAddingCable() {
     //print('build cable $addingCable');
     return [
-      PolylineLayer(polylines: [Polyline(points: addingCablePoints)]),
-      DragMarkers(markers: polyEditor!.edit()),
+      PolylineLayer(polylines: [Polyline(points: addingCable.points ?? const [])]),
+      DragMarkers(markers: polyEditor.edit()),
     ];
   }
 
@@ -420,6 +663,8 @@ class _HomePageState extends State<HomePage> {
               await loadCables();
               setState(() {
                 mode = '';
+                isEditingCable = false;
+                before = null;
               });
             },
           ),
@@ -482,7 +727,6 @@ class _HomePageState extends State<HomePage> {
                     );
                   }
                 }
-                //save addingCablePoints to DB
                 print('save cable:\n $addingCable');
                 addingCable.fibersNumber = fibersNumber;
                 var res = await addingCable.storeCable(mode == 'addingcablenew' ? null : addingCable);
@@ -492,8 +736,14 @@ class _HomePageState extends State<HomePage> {
                     addingCable.id = res.first['id'];
                     cables.add(addingCable);
                     print('save to history');
-                    addingCable.updateCableHistory(before: before!).then((onValue) => print('[DB History result]\n$onValue'));
+                    if (isEditingCable && before != null) {
+                      addingCable
+                          .updateCableHistory(before: before!)
+                          .then((onValue) => print('[DB History result]\n$onValue'));
+                    }
                     mode = '';
+                    isEditingCable = false;
+                    before = null;
                   });
                 } else {
                   reportError('Ошибка сохранения кабеля');
@@ -508,7 +758,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   _handleTapForAddingCable(LatLng pos) {
-    polyEditor!.add(addingCable.points!, pos);
+    polyEditor.add(addingCable.points!, pos);
   }
 
   Widget _buildCableEditModeOverlay() {
@@ -782,6 +1032,9 @@ class _HomePageState extends State<HomePage> {
   Future<void> _addCable() async {
     setState(() {
       addingCable = Cable(points: []);
+      isEditingCable = false;
+      before = null;
+      _resetPolyEditor();
       mode = 'addingcablenew';
     });
   }
