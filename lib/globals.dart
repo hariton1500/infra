@@ -48,6 +48,8 @@ var sb = Supabase.instance.client.from('PON_boxes');
 var sbHistory = Supabase.instance.client.from('change_history');
 var sbPillars = Supabase.instance.client.from('Pillars');
 var sbCables = Supabase.instance.client.from('Cables');
+var sbMuffs = Supabase.instance.client.from('MuffNotes');
+var sbMuffFibers = Supabase.instance.client.from('MuffFibers');
 
 Future loadBoxes() async {
   var res = await sb.select();
