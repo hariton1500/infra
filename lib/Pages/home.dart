@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
@@ -41,6 +41,8 @@ class _HomePageState extends State<HomePage> {
   LatLng? _lastAddedPoint;
   int _lastAddedTick = 0;
   Timer? _lastAddedTimer;
+  // Версия модуля
+  static const int _version = 1403261002;
 
   static const int _minCablePoints = 2;
 
@@ -328,7 +330,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Инфраструктура PON'),
+        title: const Text('Инфраструктура PON: версия $_version'),
         actions: [
           _buildLocationButton(),
           _buildRadiusButton(),

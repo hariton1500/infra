@@ -50,6 +50,7 @@ var sbPillars = Supabase.instance.client.from('Pillars');
 var sbCables = Supabase.instance.client.from('Cables');
 var sbMuffs = Supabase.instance.client.from('MuffNotes');
 var sbMuffFibers = Supabase.instance.client.from('MuffFibers');
+var sbCabinets = Supabase.instance.client.from('CabinetNotes');
 
 Future loadBoxes() async {
   var res = await sb.select();

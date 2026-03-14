@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:infra/Pages/home.dart';
 import 'package:infra/Pages/muff_notebook.dart';
+import 'package:infra/Pages/network_cabinet.dart';
 import 'package:infra/globals.dart';
 
 class StartPage extends StatelessWidget {
@@ -35,6 +36,15 @@ class StartPage extends StatelessWidget {
               },
               icon: const Icon(Icons.notes),
               label: const Text('Блокнот муфт'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const CabinetNotebookPage()),
+                );
+              },
+              icon: const Icon(Icons.dns),
+              label: const Text('Сетевые шкафы'),
             ),
           ],
         ),

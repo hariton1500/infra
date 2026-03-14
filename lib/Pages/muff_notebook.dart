@@ -39,6 +39,8 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
   // Контроллер карты и масштаб.
   final MapController _mapController = MapController();
   double _mapZoom = 14;
+  // Версия модуля
+  static const int _version = 1403261002;
 
   static int _nextMuffId = 1;
   static final List<Map<String, dynamic>> _muffStore = [];
@@ -1025,7 +1027,7 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
         _muffStore.any((m) => m['deleted'] != true && m['dirty'] == true);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Блокнот муфт'),
+        title: const Text('Блокнот муфт: версия ${_version}'),
         actions: [
           IconButton(
             onPressed: () => setState(() => _mapView = !_mapView),
