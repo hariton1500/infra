@@ -59,6 +59,20 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
       Colors.pink,
       Colors.cyan,
     ],
+    'odessa': [
+      Colors.red,
+      Colors.green,
+      Colors.blue,
+      Colors.yellow,
+      Colors.white,
+      Colors.grey,
+      Colors.brown,
+      Colors.purple,
+      Colors.orange,
+      Colors.black,
+      Colors.pink,
+      Colors.cyan,
+    ],
   };
 
   String _fiberKey(int cableId, int fiberIndex) => '$cableId:$fiberIndex';
@@ -545,7 +559,7 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
                         const SizedBox(width: 12),
                         DropdownButton<int>(
                           value: fibersNumber,
-                          items: [1, 2, 4, 8, 12, 24]
+                          items: [1, 2, 4, 8, 12, 16, 24, 32, 48, 64, 96]
                               .map((v) => DropdownMenuItem(value: v, child: Text('$v')))
                               .toList(),
                           onChanged: (v) => setStateDialog(() => fibersNumber = v ?? 12),

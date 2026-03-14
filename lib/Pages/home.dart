@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
@@ -100,19 +100,25 @@ class _HomePageState extends State<HomePage> {
       return points.map((p) => [p.latitude, p.longitude]).toList();
     }
     if (points is List) {
-      return points.map<List<double>>((p) {
-        if (p is LatLng) return [p.latitude, p.longitude];
-        if (p is List && p.length >= 2) {
-          return [p[0] as double, p[1] as double];
+      final result = <List<double>>[];
+      for (final p in points) {
+        if (p is LatLng) {
+          result.add([p.latitude, p.longitude]);
+        } else if (p is List && p.length >= 2) {
+          final lat = p[0];
+          final lng = p[1];
+          if (lat is num && lng is num) {
+            result.add([lat.toDouble(), lng.toDouble()]);
+          }
+        } else if (p is Map) {
+          final lat = p['lat'];
+          final lng = p['lng'] ?? p['long'];
+          if (lat is num && lng is num) {
+            result.add([lat.toDouble(), lng.toDouble()]);
+          }
         }
-        if (p is Map) {
-          return [
-            (p['lat'] as num).toDouble(),
-            (p['lng'] as num?)?.toDouble() ?? (p['long'] as num).toDouble(),
-          ];
-        }
-        return [0, 0];
-      }).toList();
+      }
+      return result;
     }
     return const <List<double>>[];
   }
@@ -362,12 +368,15 @@ class _HomePageState extends State<HomePage> {
               if (true) _buildPonBoxMarkers(),
               _buildPillarMarkers(),
               ..._buildCables(),
+              if (!mode.startsWith('addingcable')) _buildCableTapTargets(cables),
               if (mode == 'changePillar') _buildLineFromOldPillarToCenter(),
               if (mode.startsWith('addingcable')) ..._buildAddingCable(),
+              if (mode.startsWith('addingcable')) _buildLastPointMarker(),
             ],
           ),
           if (mode == 'changePillar') _buildPillarEditModeOverlay(),
           if (mode.startsWith('addingcable')) _buildCableEditModeOverlay(),
+          if (mode.startsWith('addingcable')) _buildAddingCableHint(),
           if (mode == 'changePillar') _buildPillarActions(),
           if (mode.startsWith('addingcable')) _buildAddingCableActions(),
           if (mode == 'getpoint') _buildGetPointModeOverlay(),
@@ -660,6 +669,8 @@ class _HomePageState extends State<HomePage> {
             icon: Icon(Icons.cancel),
             label: Text('Отмена'),
             onPressed: () async {
+              final canDiscard = await _confirmDiscardCableChanges();
+              if (!canDiscard) return;
               await loadCables();
               setState(() {
                 mode = '';
@@ -672,6 +683,13 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.all(8.0),
             child: ElevatedButton.icon(
               onPressed: () async {
+                final points = addingCable.points ?? const <LatLng>[];
+                if (points.length < _minCablePoints) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Добавьте хотя бы две точки кабеля')),
+                  );
+                  return;
+                }
                 commentController.text = addingCable.comment ?? '';
                 int? fibersNumber = addingCable.fibersNumber;
                 int? dialogRes = await showModalBottomSheet<int>(
@@ -759,6 +777,17 @@ class _HomePageState extends State<HomePage> {
 
   _handleTapForAddingCable(LatLng pos) {
     polyEditor.add(addingCable.points!, pos);
+    setState(() {
+      _lastAddedPoint = pos;
+      _lastAddedTick++;
+      _lastAddedTimer?.cancel();
+      _lastAddedTimer = Timer(const Duration(milliseconds: 800), () {
+        if (!mounted) return;
+        setState(() {
+          _lastAddedPoint = null;
+        });
+      });
+    });
   }
 
   Widget _buildCableEditModeOverlay() {
