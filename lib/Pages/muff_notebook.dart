@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -104,7 +104,9 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
 
     await _loadMuffs();
     try {
-      await _pullMerge();
+      if (!_muffStore.any((m) => m['dirty'] == true)) {
+        await _pullMerge();
+      }
       await _persist();
       await _loadMuffs();
     } catch (_) {
@@ -196,36 +198,45 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
 
   Future<void> _syncAll() async {
     // Отправка всех dirty-элементов в Supabase (tombstone для удалений).
+    print('[${DateTime.now().toIso8601String()}][MuffNotebookPage] syncing all');
     if (_syncing) return;
     setState(() => _syncing = true);
     try {
       final dirty = _muffStore.where((m) => m['dirty'] == true).toList();
+      print('[${DateTime.now().toIso8601String()}][MuffNotebookPage] dirty muffs: ${dirty.length}');
+      final justUpsertedIds = <int>{};
       for (final muff in dirty) {
-        final id = muff['id'];
+        final id = muff['id'] as int;
         final now = DateTime.now().toIso8601String();
         if (muff['deleted'] == true) {
-          await sbMuffs.upsert({
+          final data = await sbMuffs.upsert({
             'id': id,
             'payload': null,
             'deleted': true,
             'updated_at': now,
             'synced_at': now,
             'updated_by': activeUser['login'],
-          }, onConflict: 'id');
+          }, onConflict: 'id').select();
+          print('[$now}][MuffNotebookPage] upsert result: $data');
           _muffStore.remove(muff);
         } else {
-          await sbMuffs.upsert({
+          final data = await sbMuffs.upsert({
             'id': id,
             'payload': _payloadForDb(muff),
             'deleted': false,
             'updated_at': now,
             'synced_at': now,
             'updated_by': activeUser['login'],
-          }, onConflict: 'id');
+          }, onConflict: 'id').select();
+          print('[$now}][MuffNotebookPage] upsert result: $data');
           muff['dirty'] = false;
+          justUpsertedIds.add(id);
         }
       }
-      await _pullMerge();
+      print('[${DateTime.now().toIso8601String()}][MuffNotebookPage] syncing all done');
+      if (!_muffStore.any((m) => m['dirty'] == true)) {
+        await _pullMerge(skipReplaceIds: justUpsertedIds);
+      }
       await _persist();
       await _loadMuffs();
     } catch (e) {
@@ -260,8 +271,9 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
     return <String, dynamic>{};
   }
 
-  Future<void> _pullMerge() async {
+  Future<void> _pullMerge({Set<int>? skipReplaceIds}) async {
     // Подтягиваем серверные изменения и мержим в локальные данные.
+    // skipReplaceIds — id муфт, только что отправленных в этом цикле; их не заменяем на данные сервера (защита от stale read).
     final res = await sbMuffs.select();
     final rows = List<Map<String, dynamic>>.from(res);
     for (final row in rows) {
@@ -292,6 +304,8 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
         _muffStore.removeAt(localIndex);
         continue;
       }
+
+      if (skipReplaceIds?.contains(id) == true) continue;
 
       if (serverUpdated.isAfter(localUpdated)) {
         final payload = _normalizePayload(row['payload']);
@@ -918,8 +932,12 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
     required int fiber2,
   }) async {
     // Добавление соединения через drag&drop (волокно-волокно).
-    final muff = _selectedMuff;
-    if (muff == null) return;
+    final selected = _selectedMuff;
+    print('[${DateTime.now().toIso8601String()}][MuffNotebookPage] adding connection direct on muff: ${selected?['id']} cable1: $cable1 fiber1: $fiber1 cable2: $fiber2 fiber2: $fiber2');
+    if (selected == null) return;
+    // Берём муфту из store — иначе изменения могут не попасть в dirty-список при синке.
+    final idx = _muffStore.indexWhere((m) => m['id'] == selected['id']);
+    final muff = idx >= 0 ? _muffStore[idx] : selected;
     if (cable1 == cable2) {
       _showSnack('Нельзя соединять волокна одного кабеля');
       return;
@@ -951,6 +969,7 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
     });
     muff['connections'] = connections;
     _touchMuff(muff);
+    if (idx >= 0) _selectedMuff = muff;
     await _persist();
     setState(() {});
   }
