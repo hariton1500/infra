@@ -16,6 +16,10 @@ class CabinetNotebookPage extends StatefulWidget {
 }
 
 class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
+  static const String _portTypeCopper = 'copper';
+  static const String _portTypeOptical = 'optical';
+  static const String _portTypePon = 'pon';
+
   final List<Map<String, dynamic>> _cabinets = [];
   bool _loadingCabinets = true;
   Map<String, dynamic>? _selectedCabinet;
@@ -52,8 +56,39 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
     ],
   };
 
+  static const Map<String, String> _portTypeLabels = {
+    _portTypeCopper: 'Медный',
+    _portTypeOptical: 'Оптический',
+    _portTypePon: 'PON',
+  };
+
   String _fiberKey(int cableId, int fiberIndex) => '$cableId:$fiberIndex';
   String _portKey(int switchId, int portIndex) => 's$switchId:$portIndex';
+
+  List<String> _portTypesForSwitch(Map<String, dynamic> sw) {
+    final portsCount = (sw['ports'] as int?) ?? 24;
+    final raw = List<dynamic>.from(sw['port_types'] ?? const []);
+    return List<String>.generate(
+      portsCount,
+      (index) {
+        final value = index < raw.length ? raw[index]?.toString() ?? '' : '';
+        if (_portTypeLabels.containsKey(value)) return value;
+        return _portTypeOptical;
+      },
+    );
+  }
+
+  Color _portTypeColor(String type) {
+    switch (type) {
+      case _portTypeCopper:
+        return Colors.brown.shade300;
+      case _portTypePon:
+        return Colors.lightGreen.shade300;
+      case _portTypeOptical:
+      default:
+        return Colors.lightBlue.shade200;
+    }
+  }
 
   @override
   void initState() {
@@ -259,10 +294,7 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
         if (e.key.startsWith('s')) {
           off = Offset(b.size.width / 2, b.size.height / 2);
         } else {
-          final side = _fiberSideByKey[e.key] ?? 0;
-          off = side == 0
-              ? Offset(b.size.width, b.size.height / 2)
-              : Offset(0, b.size.height / 2);
+          off = Offset(b.size.width / 2, b.size.height / 2);
         }
         newOffsets[e.key] = box.globalToLocal(b.localToGlobal(off));
       }
@@ -409,11 +441,10 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
     }
   }
 
-  List<Map<String, dynamic>> _getCablesBySide(int side) {
+  List<Map<String, dynamic>> _getCables() {
     final cab = _selectedCabinet;
     if (cab == null) return [];
-    final cables = List<Map<String, dynamic>>.from(cab['cables'] ?? []);
-    return cables.where((c) => (c['side'] as int? ?? 0) == side).toList();
+    return List<Map<String, dynamic>>.from(cab['cables'] ?? []);
   }
 
   Map<String, dynamic>? _getSwitchById(int id) {
@@ -475,6 +506,7 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
                   'name': nameCtrl.text.trim().isEmpty ? 'Коммутатор' : nameCtrl.text.trim(),
                   'model': modelCtrl.text.trim(),
                   'ports': ports,
+                  'port_types': List<String>.filled(ports, _portTypeOptical),
                 });
                 cab['switches'] = sw;
                 _touchCabinet(cab);
@@ -505,11 +537,93 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
     setState(() {});
   }
 
+  Future<void> _editSwitchPortTypes(int switchId) async {
+    final cab = _selectedCabinet;
+    if (cab == null) return;
+    final switches = List<Map<String, dynamic>>.from(cab['switches'] ?? []);
+    final switchIndex = switches.indexWhere((s) => s['id'] == switchId);
+    if (switchIndex == -1) return;
+
+    final sw = Map<String, dynamic>.from(switches[switchIndex]);
+    final portTypes = List<String>.from(_portTypesForSwitch(sw));
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          title: Text('Типы портов: ${sw['name'] ?? 'Коммутатор'}'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(portTypes.length, (index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        SizedBox(width: 72, child: Text('Порт ${index + 1}')),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: portTypes[index],
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            items:
+                                _portTypeLabels.entries
+                                    .map(
+                                      (entry) => DropdownMenuItem<String>(
+                                        value: entry.key,
+                                        child: Text(entry.value),
+                                      ),
+                                    )
+                                    .toList(),
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setDlg(() => portTypes[index] = value);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Отмена'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                switches[switchIndex] = {
+                  ...sw,
+                  'port_types': portTypes,
+                };
+                cab['switches'] = switches;
+                _touchCabinet(cab);
+                await _persist();
+                if (!mounted) return;
+                setState(() {});
+                Navigator.of(ctx).pop();
+              },
+              icon: const Icon(Icons.save),
+              label: const Text('Сохранить'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _addCable() async {
     if (_selectedCabinet == null) return;
     String name = '';
     int fibersNumber = 12;
-    int side = 0;
     String scheme = _fiberSchemes.keys.first;
     await showDialog<void>(
       context: context,
@@ -529,15 +643,6 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
                     value: fibersNumber,
                     items: [1, 2, 4, 8, 12, 16, 24, 32, 48, 64, 96].map((v) => DropdownMenuItem(value: v, child: Text('$v'))).toList(),
                     onChanged: (v) => setDlg(() => fibersNumber = v ?? 12),
-                  ),
-                ]),
-                Row(children: [
-                  const Text('Сторона:'),
-                  const SizedBox(width: 12),
-                  DropdownButton<int>(
-                    value: side,
-                    items: const [DropdownMenuItem(value: 0, child: Text('Слева')), DropdownMenuItem(value: 1, child: Text('Справа'))],
-                    onChanged: (v) => setDlg(() => side = v ?? 0),
                   ),
                 ]),
                 Row(children: [
@@ -562,7 +667,6 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
                   'id': DateTime.now().microsecondsSinceEpoch,
                   'name': name.isEmpty ? 'Кабель' : name,
                   'fibers': fibersNumber,
-                  'side': side,
                   'color_scheme': scheme,
                   'fiber_comments': List<String>.filled(fibersNumber, ''),
                   'spliters': List<int>.filled(fibersNumber, 0),
@@ -621,16 +725,6 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
         ],
       ),
     );
-  }
-
-  Future<void> _toggleCableSide(int cableId) async {
-    final cable = _getCableById(cableId);
-    if (cable == null || cable.isEmpty) return;
-    final cur = (cable['side'] as int?) ?? 0;
-    cable['side'] = cur == 0 ? 1 : 0;
-    if (_selectedCabinet != null) _touchCabinet(_selectedCabinet!);
-    await _persist();
-    setState(() {});
   }
 
   Future<void> _editFiber(int cableId, int fiberIndex) async {
@@ -743,6 +837,41 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
     return false;
   }
 
+  String? _endpointPortType(Map<String, dynamic> end) {
+    final switchId = end['switchId'] as int?;
+    final portIndex = end['portIndex'] as int?;
+    if (switchId == null || portIndex == null) return null;
+    final sw = _getSwitchById(switchId);
+    if (sw == null || sw.isEmpty) return _portTypeOptical;
+    final portTypes = _portTypesForSwitch(sw);
+    if (portIndex < 0 || portIndex >= portTypes.length) return _portTypeOptical;
+    return portTypes[portIndex];
+  }
+
+  String? _validateConnectionTypes(Map<String, dynamic> end1, Map<String, dynamic> end2) {
+    final isCopperToFiber =
+        (_endpointPortType(end1) == _portTypeCopper && end2['cableId'] != null) ||
+        (_endpointPortType(end2) == _portTypeCopper && end1['cableId'] != null);
+    if (isCopperToFiber) {
+      return 'Медный порт нельзя соединять с волокном кабеля';
+    }
+
+    final isPortToPort =
+        end1['switchId'] != null &&
+        end1['portIndex'] != null &&
+        end2['switchId'] != null &&
+        end2['portIndex'] != null;
+    if (!isPortToPort) return null;
+
+    final type1 = _endpointPortType(end1);
+    final type2 = _endpointPortType(end2);
+
+    if (type1 != null && type2 != null && type1 != type2) {
+      return 'Между коммутаторами нельзя соединять порты разных типов';
+    }
+    return null;
+  }
+
   Future<void> _addConnectionUnified(Map<String, dynamic> conn) async {
     final selected = _selectedCabinet;
     if (selected == null) return;
@@ -759,6 +888,11 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
     }
     if (end1['switchId'] != null && end2['switchId'] != null && end1['switchId'] == end2['switchId']) {
       _showSnack('Нельзя соединять порты одного коммутатора');
+      return;
+    }
+    final typeError = _validateConnectionTypes(end1, end2);
+    if (typeError != null) {
+      _showSnack(typeError);
       return;
     }
     if (_isEndpointBusy(connList, end1) || _isEndpointBusy(connList, end2)) {
@@ -1022,14 +1156,7 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
                             ...switches.map((s) => _buildSwitchRow(s)),
                             const SizedBox(height: 12),
                           ],
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(child: _buildCableColumn(0)),
-                              const SizedBox(width: 12),
-                              Expanded(child: _buildCableColumn(1)),
-                            ],
-                          ),
+                          _buildCableList(),
                         ],
                       ),
                       Positioned.fill(
@@ -1117,6 +1244,7 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
 
   Widget _buildSwitchRow(Map<String, dynamic> sw) {
     final portsCount = (sw['ports'] as int?) ?? 24;
+    final portTypes = _portTypesForSwitch(sw);
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
@@ -1130,21 +1258,59 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
                   child: Text('${sw['name'] ?? 'Свитч'} ${sw['model']}',
                       style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
+                IconButton(
+                  tooltip: 'Типы портов',
+                  onPressed: () => _editSwitchPortTypes(sw['id']),
+                  icon: const Icon(Icons.tune),
+                ),
                 PopupMenuButton<String>(
-                  onSelected: (v) { if (v == 'delete') _deleteSwitch(sw['id']); },
+                  onSelected: (v) {
+                    if (v == 'ports') _editSwitchPortTypes(sw['id']);
+                    if (v == 'delete') _deleteSwitch(sw['id']);
+                  },
                   itemBuilder: (_) => const [PopupMenuItem(value: 'delete', child: Text('Удалить'))],
                 ),
               ],
             ),
             const SizedBox(height: 6),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(portsCount, (i) {
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children:
+                  _portTypeLabels.entries
+                      .map(
+                        (entry) => Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: _portTypeColor(entry.key),
+                                borderRadius: BorderRadius.circular(2),
+                                border: Border.all(color: Colors.black26),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              entry.value,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      )
+                      .toList(),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: List.generate(portsCount, (i) {
+                final portType = i < portTypes.length ? portTypes[i] : _portTypeOptical;
+                final portColor = _portTypeColor(portType);
                 final keyId = _portKey(sw['id'], i);
                 _currentFiberKeys.add(keyId);
-                _fiberColorByKey[keyId] = Colors.grey;
+                _fiberColorByKey[keyId] = portColor;
                 _fiberSideByKey[keyId] = 0;
                 final anchorKey = _fiberKeys.putIfAbsent(keyId, () => GlobalKey());
                 final portWidget = DragTarget<Map<String, dynamic>>(
@@ -1169,24 +1335,23 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
                           width: 26,
                           height: 26,
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade300,
+                            color: portColor,
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(color: Colors.black, width: 2),
                           ),
                           child: Center(child: Text('${i + 1}', style: const TextStyle(fontSize: 10))),
                         ),
                       ),
-                      childWhenDragging: Opacity(opacity: 0.3, child: _portSquare(i + 1, hover)),
-                      child: _portSquare(i + 1, hover, key: anchorKey),
+                      childWhenDragging: Opacity(
+                        opacity: 0.3,
+                        child: _portSquare(i + 1, hover, portColor, portType),
+                      ),
+                      child: _portSquare(i + 1, hover, portColor, portType, key: anchorKey),
                     );
                   },
                 );
-                return Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: portWidget,
-                );
+                return portWidget;
               }),
-              ),
             ),
           ],
         ),
@@ -1194,28 +1359,35 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
     );
   }
 
-  Widget _portSquare(int label, bool highlight, {Key? key}) {
+  Widget _portSquare(
+    int label,
+    bool highlight,
+    Color color,
+    String portType, {
+    Key? key,
+  }) {
     return Container(
       key: key,
       width: 26,
       height: 26,
       decoration: BoxDecoration(
-        color: Colors.grey.shade300,
+        color: color,
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: highlight ? Colors.deepOrange : Colors.black54, width: highlight ? 2 : 1),
         boxShadow: highlight ? [BoxShadow(color: Colors.deepOrange.withValues(alpha: 0.5), blurRadius: 4)] : null,
       ),
-      child: Center(child: Text('$label', style: const TextStyle(fontSize: 10))),
+      child: Tooltip(
+        message: 'Порт $label: ${_portTypeLabels[portType] ?? _portTypeLabels[_portTypeOptical]}',
+        child: Center(child: Text('$label', style: const TextStyle(fontSize: 10))),
+      ),
     );
   }
 
-  Widget _buildCableColumn(int side) {
-    final cables = _getCablesBySide(side);
+  Widget _buildCableList() {
+    final cables = _getCables();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(side == 0 ? 'Слева' : 'Справа', style: const TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
         if (cables.isEmpty) const Text('Нет кабелей'),
         ...cables.map((cable) {
           final sel = _selectedCableId == cable['id'];
@@ -1234,20 +1406,19 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
                         PopupMenuButton<String>(
                           onSelected: (v) {
                             if (v == 'rename') _editCableName(cable['id']);
-                            if (v == 'swap') _toggleCableSide(cable['id']);
                             if (v == 'delete') _deleteCable(cable['id']);
                           },
                           itemBuilder: (_) => const [
                             PopupMenuItem(value: 'rename', child: Text('Переименовать')),
-                            PopupMenuItem(value: 'swap', child: Text('Перенести на другую сторону')),
                             PopupMenuItem(value: 'delete', child: Text('Удалить')),
                           ],
                         ),
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
                       children: List.generate((cable['fibers'] as int?) ?? 1, (i) {
                         final scheme = cable['color_scheme'] ?? 'default';
                         final colors = _fiberSchemes[scheme] ?? _fiberSchemes.values.first;
@@ -1257,7 +1428,6 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
                         final keyId = _fiberKey(cable['id'], i);
                         _currentFiberKeys.add(keyId);
                         _fiberColorByKey[keyId] = color;
-                        _fiberSideByKey[keyId] = side;
                         final anchorKey = _fiberKeys.putIfAbsent(keyId, () => GlobalKey());
                         final fiberWidget = DragTarget<Map<String, dynamic>>(
                           onWillAcceptWithDetails: (_) => true,
@@ -1298,18 +1468,13 @@ class _CabinetNotebookPageState extends State<CabinetNotebookPage> {
                             );
                           },
                         );
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (side == 1 && spliter > 0) _spliterBadge(spliter, key: anchorKey),
-                              if (side == 1 && spliter > 0) const SizedBox(width: 6),
-                              fiberWidget,
-                              if (side == 0 && spliter > 0) const SizedBox(width: 6),
-                              if (side == 0 && spliter > 0) _spliterBadge(spliter, key: anchorKey),
-                            ],
-                          ),
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            fiberWidget,
+                            if (spliter > 0) const SizedBox(width: 6),
+                            if (spliter > 0) _spliterBadge(spliter, key: anchorKey),
+                          ],
                         );
                       }),
                     ),

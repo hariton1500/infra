@@ -16,11 +16,13 @@ class MuffNotebookPage extends StatefulWidget {
 }
 
 class _MuffNotebookPageState extends State<MuffNotebookPage> {
+  static const String _allDistrictsValue = '__all_districts__';
   // Список муфт в памяти, отображается в UI (фильтрация/сортировка).
   final List<Map<String, dynamic>> _muffs = [];
   bool _loadingMuffs = true;
   Map<String, dynamic>? _selectedMuff;
   int? _selectedCableId;
+  String? _districtFilter;
 
   // Ключи/координаты для отрисовки линий соединений между волокнами.
   final GlobalKey _fiberAreaKey = GlobalKey();
@@ -78,6 +80,39 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
   };
 
   String _fiberKey(int cableId, int fiberIndex) => '$cableId:$fiberIndex';
+
+  List<String> get _districtOptions {
+    final districts =
+        _muffs
+            .map((m) => (m['district'] as String?)?.trim() ?? '')
+            .where((district) => district.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+    return districts;
+  }
+
+  List<Map<String, dynamic>> get _visibleMuffs {
+    final filter = _districtFilter?.trim();
+    if (filter == null || filter.isEmpty) return _muffs;
+    return _muffs.where((m) => ((m['district'] as String?)?.trim() ?? '') == filter).toList();
+  }
+
+  void _applyDistrictFilter(String district) {
+    final normalized =
+        district == _allDistrictsValue ? null : district.trim();
+    final nextFilter = (normalized == null || normalized.isEmpty) ? null : normalized;
+    final nextVisible =
+        nextFilter == null
+            ? _muffs
+            : _muffs.where((m) => ((m['district'] as String?)?.trim() ?? '') == nextFilter).toList();
+    setState(() {
+      _districtFilter = nextFilter;
+      if (_selectedMuff != null && !nextVisible.any((m) => m['id'] == _selectedMuff!['id'])) {
+        _selectedMuff = null;
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -165,6 +200,13 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
       final bTime = b['updated_at'] as DateTime?;
       return (bTime ?? DateTime(1970)).compareTo(aTime ?? DateTime(1970));
     });
+    if (_districtFilter != null && !_districtOptions.contains(_districtFilter)) {
+      _districtFilter = null;
+    }
+    if (_selectedMuff != null) {
+      final idx = _muffs.indexWhere((m) => m['id'] == _selectedMuff!['id']);
+      _selectedMuff = idx == -1 ? null : _muffs[idx];
+    }
     if (mounted) setState(() => _loadingMuffs = false);
   }
 
@@ -369,6 +411,7 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
   Future<void> _showMuffEditor({Map<String, dynamic>? muff}) async {
     // Диалог создания/редактирования муфты (название, адрес, комментарий, точка).
     final nameController = TextEditingController(text: muff?['name'] ?? '');
+    final districtController = TextEditingController(text: muff?['district'] ?? '');
     final locationController = TextEditingController(text: muff?['location'] ?? '');
     final commentController = TextEditingController(text: muff?['comment'] ?? '');
     double? lat = muff?['location_lat'] as double?;
@@ -389,6 +432,10 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
                     TextField(
                       controller: nameController,
                       decoration: const InputDecoration(labelText: 'Название'),
+                    ),
+                    TextField(
+                      controller: districtController,
+                      decoration: const InputDecoration(labelText: 'Район'),
                     ),
                     TextField(
                       controller: locationController,
@@ -449,6 +496,7 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
                   onPressed: () async {
                     final payload = <String, dynamic>{
                       'name': nameController.text.trim(),
+                      'district': districtController.text.trim(),
                       'location': locationController.text.trim(),
                       'comment': commentController.text.trim(),
                       'location_lat': lat,
@@ -1029,6 +1077,27 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
       appBar: AppBar(
         title: const Text('Блокнот муфт: версия ${_version}'),
         actions: [
+          PopupMenuButton<String>(
+            tooltip: 'Фильтр по району',
+            icon: Icon(
+              _districtFilter == null ? Icons.filter_list : Icons.filter_list_alt,
+            ),
+            onSelected: _applyDistrictFilter,
+            itemBuilder: (context) => [
+              CheckedPopupMenuItem<String>(
+                value: _allDistrictsValue,
+                checked: _districtFilter == null,
+                child: const Text('Все районы'),
+              ),
+              ..._districtOptions.map(
+                (district) => CheckedPopupMenuItem<String>(
+                  value: district,
+                  checked: _districtFilter == district,
+                  child: Text(district),
+                ),
+              ),
+            ],
+          ),
           IconButton(
             onPressed: () => setState(() => _mapView = !_mapView),
             icon: Icon(_mapView ? Icons.list : Icons.map),
@@ -1082,7 +1151,7 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
   Widget _buildMapPane() {
     // Карта муфт с маркерами.
     final muffsWithCoords =
-        _muffs.where((m) => m['location_lat'] != null && m['location_lng'] != null).toList();
+        _visibleMuffs.where((m) => m['location_lat'] != null && m['location_lng'] != null).toList();
     final center = muffsWithCoords.isNotEmpty
         ? LatLng(
             muffsWithCoords.first['location_lat'] as double,
@@ -1141,6 +1210,10 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 6),
+              if (((muff['district'] as String?)?.trim() ?? '').isNotEmpty)
+                Text('Район: ${muff['district']}'),
+              if (((muff['district'] as String?)?.trim() ?? '').isNotEmpty)
+                const SizedBox(height: 6),
               Text(muff['location'] ?? ''),
               const SizedBox(height: 6),
               Text(
@@ -1178,6 +1251,7 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
 
   Widget _buildListPane() {
     // Левая панель: список муфт с индикатором синка.
+    final visibleMuffs = _visibleMuffs;
     if (_loadingMuffs) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -1189,19 +1263,37 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
         ),
       );
     }
+    if (visibleMuffs.isEmpty) {
+      return Center(
+        child: Text(
+          'В выбранном районе муфт пока нет.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      );
+    }
     return ListView.separated(
       padding: const EdgeInsets.all(12),
-      itemCount: _muffs.length,
+      itemCount: visibleMuffs.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
-        final muff = _muffs[index];
+        final muff = visibleMuffs[index];
         final selected = _selectedMuff?['id'] == muff['id'];
         return Card(
           color: selected ? Theme.of(context).colorScheme.primaryContainer : null,
           child: ListTile(
             leading: _statusDot(muff['dirty'] == true),
             title: Text(muff['name'] ?? 'Без названия'),
-            subtitle: Text(muff['location'] ?? ''),
+            subtitle: Text(
+              [
+                if (((muff['district'] as String?)?.trim() ?? '').isNotEmpty)
+                  'Район: ${muff['district']}',
+                if ((muff['location'] ?? '').toString().trim().isNotEmpty)
+                  (muff['location'] ?? '').toString().trim(),
+              ].join('\n'),
+            ),
+            isThreeLine:
+                ((muff['district'] as String?)?.trim() ?? '').isNotEmpty &&
+                (muff['location'] ?? '').toString().trim().isNotEmpty,
             trailing: PopupMenuButton<String>(
               onSelected: (v) {
                 if (v == 'edit') _showMuffEditor(muff: muff);
@@ -1298,6 +1390,10 @@ class _MuffNotebookPageState extends State<MuffNotebookPage> {
                       ],
                     ),
                     const SizedBox(height: 4),
+                    if (((muff['district'] as String?)?.trim() ?? '').isNotEmpty)
+                      Text('Район: ${muff['district']}'),
+                    if (((muff['district'] as String?)?.trim() ?? '').isNotEmpty)
+                      const SizedBox(height: 4),
                     Text(muff['location'] ?? ''),
                     if (muff['location_lat'] != null && muff['location_lng'] != null)
                       Padding(
